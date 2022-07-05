@@ -9,7 +9,7 @@ import matplotlib.pyplot as plt
 from models.dv_regression import PDV, NormalizePDV, ProjectedPDV, ProjectedPDV_175
 from models.grey_code import GreyCode3PlusOffset, GreyCode5PlusOffset, GreyCode7PlusOffset
 from models.logistic_regression import LogisticRegression
-from models.circular_smooth_label import CSL_128Bit_01WindowWidth_PlusOffset, CSL_128Bit_03WindowWidth_PlusOffset, CSL_32Bit_01WindowWidth_PlusOffset, CSL_32Bit_03WindowWidth_PlusOffset, CSL_256Bit_01WindowWidth_PlusOffset, CSL_256Bit_03WindowWidth_PlusOffset
+from models.circular_smooth_label import CSL_128Bit_01Gaussian, CSL_128Bit_01WindowWidth_PlusOffset, CSL_128Bit_03Gaussian, CSL_128Bit_03WindowWidth_PlusOffset, CSL_256Bit_01Gaussian, CSL_256Bit_03Gaussian, CSL_32Bit_01Gaussian, CSL_32Bit_01WindowWidth_PlusOffset, CSL_32Bit_03Gaussian, CSL_32Bit_03WindowWidth_PlusOffset, CSL_256Bit_01WindowWidth_PlusOffset, CSL_256Bit_03WindowWidth_PlusOffset
 from data.dogs_dataset import DogDataset
 from data.line_dataset import LineDataset
 from training_loop import training_loop
@@ -50,6 +50,14 @@ EVALUATION_RANGES = [
 ]
 
 MODEL_CLASSES = [
+    # Gaussian window function
+    CSL_32Bit_01Gaussian,
+    CSL_128Bit_01Gaussian,
+    CSL_256Bit_01Gaussian,
+    CSL_32Bit_03Gaussian,
+    CSL_128Bit_03Gaussian,
+    CSL_256Bit_03Gaussian,
+
     ProjectedPDV,
     PDV,
     NormalizePDV,
@@ -82,9 +90,9 @@ CLEAN_MODEL_CLASSES = [
     LogisticRegression,
 ]
 PDV_CLASSES = [
+    PDV,
     ProjectedPDV,
     ProjectedPDV_175,
-    PDV,
     NormalizePDV,
 ]
 GCL_CLASSES = [
@@ -93,12 +101,21 @@ GCL_CLASSES = [
     GreyCode7PlusOffset,
 ]
 CSL_CLASSES = [
+    # Traingle window function
     CSL_32Bit_01WindowWidth_PlusOffset,
     CSL_32Bit_03WindowWidth_PlusOffset,
     CSL_128Bit_01WindowWidth_PlusOffset,
     CSL_128Bit_03WindowWidth_PlusOffset,
     CSL_256Bit_01WindowWidth_PlusOffset,
     CSL_256Bit_03WindowWidth_PlusOffset,
+
+    # Gaussian window function
+    CSL_32Bit_01Gaussian,
+    CSL_128Bit_01Gaussian,
+    CSL_256Bit_01Gaussian,
+    CSL_32Bit_03Gaussian,
+    CSL_128Bit_03Gaussian,
+    CSL_256Bit_03Gaussian,
 ]
 
 
@@ -174,14 +191,21 @@ def plot_helper(plot_name: str, plot_title: str, model_classes: List):
 
     # Figure "architecture"
     fig = plt.figure(figsize=(10, 5))
-    gs = GridSpec(nrows=2, ncols=2)
+    gs = GridSpec(nrows=1, ncols=2)
     ax0 = fig.add_subplot(gs[:, 0])
     ax1 = fig.add_subplot(gs[:, 1])
+    fig.tight_layout(pad=2.0)
+
+    # fig, axs = plt.subplots(1, 2)
+    # ax0 = axs[0]
+    # ax1 = axs[1]
+
 
     # Labels
-    fig.suptitle(plot_title, fontsize=16)
-    ax0.set(ylabel="Median predicted inaccuray (degrees)", xlabel="Max. label inaccuracy (degrees)")
-    ax1.set(ylabel="Mean predicted inaccuracy (degrees)", xlabel="Max. label inaccuracy (degrees)")
+    # fig.suptitle(plot_title, fontsize=16)
+    xlabel = "Noise distribution length (degrees)"
+    ax0.set(ylabel="Median abs. test error (degrees)", xlabel=xlabel)
+    ax1.set(ylabel="Avgerage abs. test error (degrees)", xlabel=xlabel)
 
     # Plot lines
     # for variation in [OVERLAPPING, OVERLAPPING_WIDE, NON_OVERLAPPING]:
@@ -203,7 +227,7 @@ def plot_helper(plot_name: str, plot_title: str, model_classes: List):
 
 def plot():
     plot_helper("rotation_all", "Rotation regression benchmark (all models)", MODEL_CLASSES)
-    plot_helper("rotation_pdv", "Rotation regression benchmark (ADV)", PDV_CLASSES)
+    plot_helper("rotation_pdv", "Comparing ADV loss functions", PDV_CLASSES)
     plot_helper("rotation_gcl", "Rotation regression benchmark (GCL)", GCL_CLASSES)
     plot_helper("rotation_csl", "Rotation regression benchmark (CSL)", CSL_CLASSES)
     plot_helper("rotation_clean", "Rotation regression benchmark (summary)", CLEAN_MODEL_CLASSES)

@@ -5,7 +5,9 @@ from torch import Tensor
 
 
 class PDV(PeriodicRegression):
-    PRETTY_NAME = "ADV (mse)"
+    PRETTY_NAME = "ADV (λ₁=1, λ₂=1)"
+    PRETTY_NAME = "λ₁=1,      λ₂=1"
+    # PRETTY_NAME = "λ₁=0.25, λ₂=1.75"
 
     def __init__(self):
         super().__init__(2)
@@ -44,7 +46,8 @@ class PDV(PeriodicRegression):
 
 
 class NormalizePDV(PDV):
-    PRETTY_NAME = "ADV (unit)"
+    PRETTY_NAME = "ADV (unit normalized)"
+    PRETTY_NAME = "Unit normalized"
 
     def __loss_impl__(self, predictions: Tensor, labels: Tensor, batch_size: int) -> Tensor:
         assert ((0 <= labels) & (labels <= 1)).all(), labels
@@ -110,12 +113,14 @@ class ProjectedPDVBase(PDV):
 
 
 class ProjectedPDV(ProjectedPDVBase):
-    PRETTY_NAME = "ADV (mse-w1)"
+    PRETTY_NAME = "ADV (λ₁=0.5, λ₂=1.5)"
+    PRETTY_NAME = "λ₁=0.5,   λ₂=1.5"
     WEIGHT_1 = 0.5
     WEIGHT_2 = 1.5
 
 
 class ProjectedPDV_175(ProjectedPDVBase):
-    PRETTY_NAME = "ADV (mse-w2)"
+    PRETTY_NAME = "ADV (λ₁=0.25, λ₂=1.75)"	
+    PRETTY_NAME = "λ₁=0.25, λ₂=1.75"
     WEIGHT_1 = 0.25
     WEIGHT_2 = 1.75
