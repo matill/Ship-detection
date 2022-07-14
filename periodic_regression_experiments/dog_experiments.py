@@ -1,7 +1,8 @@
+from dataclasses import dataclass
 import json
 import os
 import sys
-from typing import List
+from typing import List, Tuple
 import torch
 from torch import nn as nn
 from torch.utils.data import DataLoader, Dataset
@@ -13,6 +14,7 @@ from models.circular_smooth_label import CSL_128Bit_01Gaussian, CSL_128Bit_01Win
 from data.dogs_dataset import DogDataset
 from data.line_dataset import LineDataset
 from training_loop import training_loop
+from plot_configs import PlotConfig, PLOT_CONFIGS
 
 USE_GPU = torch.cuda.is_available()
 DEVICE = "cuda" if USE_GPU else "cpu"
@@ -75,47 +77,6 @@ MODEL_CLASSES = [
     CSL_256Bit_03WindowWidth_PlusOffset,
 
     LogisticRegression,
-]
-CLEAN_MODEL_CLASSES = [
-    ProjectedPDV,
-
-    GreyCode3PlusOffset,
-    # GreyCode7PlusOffset,
-
-    CSL_32Bit_01WindowWidth_PlusOffset,
-    CSL_32Bit_03WindowWidth_PlusOffset,
-    # CSL_128Bit_01WindowWidth_PlusOffset,
-    CSL_128Bit_03WindowWidth_PlusOffset,
-
-    LogisticRegression,
-]
-PDV_CLASSES = [
-    PDV,
-    ProjectedPDV,
-    ProjectedPDV_175,
-    NormalizePDV,
-]
-GCL_CLASSES = [
-    GreyCode3PlusOffset,
-    GreyCode5PlusOffset,
-    GreyCode7PlusOffset,
-]
-CSL_CLASSES = [
-    # Traingle window function
-    CSL_32Bit_01WindowWidth_PlusOffset,
-    CSL_32Bit_03WindowWidth_PlusOffset,
-    CSL_128Bit_01WindowWidth_PlusOffset,
-    CSL_128Bit_03WindowWidth_PlusOffset,
-    CSL_256Bit_01WindowWidth_PlusOffset,
-    CSL_256Bit_03WindowWidth_PlusOffset,
-
-    # Gaussian window function
-    CSL_32Bit_01Gaussian,
-    CSL_128Bit_01Gaussian,
-    CSL_256Bit_01Gaussian,
-    CSL_32Bit_03Gaussian,
-    CSL_128Bit_03Gaussian,
-    CSL_256Bit_03Gaussian,
 ]
 
 
@@ -184,10 +145,10 @@ def read_best(ModelClass, max_inaccuracy: int, metric: str) -> float:
             for epoch_log_obj in as_json
         ])
 
-def plot_helper(plot_name: str, plot_title: str, model_classes: List):
+# def plot_helper(plot_name: str, model_classes: List):
+def plot_helper(plot_cfg: PlotConfig):
     import matplotlib.pyplot as plt
     from matplotlib.gridspec import GridSpec
-    # fig, axs = plt.subplots(1, 2, constrained_layout=True, gridspec_kw={'wspace': 0.1, 'hspace': 0.1})
 
     # Figure "architecture"
     fig = plt.figure(figsize=(10, 5))
@@ -195,11 +156,6 @@ def plot_helper(plot_name: str, plot_title: str, model_classes: List):
     ax0 = fig.add_subplot(gs[:, 0])
     ax1 = fig.add_subplot(gs[:, 1])
     fig.tight_layout(pad=2.0)
-
-    # fig, axs = plt.subplots(1, 2)
-    # ax0 = axs[0]
-    # ax1 = axs[1]
-
 
     # Labels
     # fig.suptitle(plot_title, fontsize=16)
@@ -209,10 +165,9 @@ def plot_helper(plot_name: str, plot_title: str, model_classes: List):
 
     # Plot lines
     # for variation in [OVERLAPPING, OVERLAPPING_WIDE, NON_OVERLAPPING]:
-    for ModelClass in model_classes:
+    for ModelClass, pretty_name in plot_cfg.members:
         # model = ModelClass()
         formal_name = ModelClass.__name__
-        pretty_name = ModelClass.PRETTY_NAME
         print("(formal_name, pretty_name)", (formal_name, pretty_name))
         median_measures = [read_best(ModelClass, max_inaccuracy, "median") for max_inaccuracy in INACCURACY_LEVELS]
         mean_measures = [read_best(ModelClass, max_inaccuracy, "mean") for max_inaccuracy in INACCURACY_LEVELS]
@@ -221,16 +176,18 @@ def plot_helper(plot_name: str, plot_title: str, model_classes: List):
 
     ax0.legend()
     ax1.legend()
-    fig.savefig(os.path.join(FIG_FOLDER, f"{plot_name}.pdf"))
-    fig.savefig(os.path.join(FIG_FOLDER, f"{plot_name}.png"))
+    fig.savefig(os.path.join(FIG_FOLDER, f"{plot_cfg.name}.pdf"))
+    fig.savefig(os.path.join(FIG_FOLDER, f"{plot_cfg.name}.png"))
 
 
 def plot():
-    plot_helper("rotation_all", "Rotation regression benchmark (all models)", MODEL_CLASSES)
-    plot_helper("rotation_pdv", "Comparing ADV loss functions", PDV_CLASSES)
-    plot_helper("rotation_gcl", "Rotation regression benchmark (GCL)", GCL_CLASSES)
-    plot_helper("rotation_csl", "Rotation regression benchmark (CSL)", CSL_CLASSES)
-    plot_helper("rotation_clean", "Rotation regression benchmark (summary)", CLEAN_MODEL_CLASSES)
+    for plot_cfg in PLOT_CONFIGS:
+        plot_helper(plot_cfg)
+    # plot_helper("rotation_all", "Rotation regression benchmark (all models)", MODEL_CLASSES)
+    # plot_helper("rotation_pdv", "Comparing ADV loss functions", PDV_CLASSES)
+    # plot_helper("rotation_gcl", "Rotation regression benchmark (GCL)", GCL_CLASSES)
+    # plot_helper("rotation_csl", "Rotation regression benchmark (CSL)", CSL_CLASSES)
+    # plot_helper("rotation_clean", "Rotation regression benchmark (summary)", CLEAN_MODEL_CLASSES)
 
 if __name__ == "__main__":
     print("Args", sys.argv)

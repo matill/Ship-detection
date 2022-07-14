@@ -13,10 +13,7 @@ USE_GPU = torch.cuda.is_available()
 DEVICE = "cuda" if USE_GPU else "cpu"
 BATCH_SIZE = 16
 MAX_EPOCHS = 30
-EPOCH_SIZE = 400
 OUT_FOLDER = "../out/periodic_regression/dog_experiments/"
-MODEL_STORAGE_FOLDER = os.path.join(OUT_FOLDER, "model_storage")
-LOG_FILE_FOLDER = os.path.join(OUT_FOLDER, "log_files")
 
 EVALUATION_RANGES = [
     # Small ranges
@@ -38,12 +35,12 @@ EVALUATION_RANGES = [
 ]
 
 @torch.inference_mode()
-def evaluate(model: PeriodicRegression, test_dl: DataLoader, epoch: int, angle_range: int) -> Dict[str, Any]:
+def evaluate(model: PeriodicRegression, test_dl: DataLoader, epoch: int, angle_range: int, experiment_name: str) -> Dict[str, Any]:
     # Get lists of all predictions and all labels
     name = model.__class__.__name__
     labels_all = []
     predictions_all = []
-    for (images, labels_01) in tqdm(test_dl, f"Epoch {epoch} (evaluation) {name}"):
+    for (images, labels_01) in tqdm(test_dl, f"{experiment_name}: Epoch {epoch} (evaluation) {name}"):
         labels_degrees = labels_01 * angle_range
         predictions_01 = model.infer(images)
         predictions_degrees = predictions_01 * angle_range
@@ -122,18 +119,29 @@ class TrainingLoop:
             self.epoch = state_dict["epoch"]
         except FileNotFoundError:
             pass
+        except Exception as e:
+            print("Failed loading", {
+                "fname": self.get_model_storage_fname(),
+            })
+            raise e
 
     def store(self):
-        torch.save(
-            {
-                "model": self.model.state_dict(),
-                "optimizer": self.optimizer.state_dict(),
-                "lr_scheduler": self.lr_scheduler.state_dict(),
-                "log": self.log,
-                "epoch": self.epoch,
-            },
-            self.get_model_storage_fname()
-        )
+        try:
+            torch.save(
+                {
+                    "model": self.model.state_dict(),
+                    "optimizer": self.optimizer.state_dict(),
+                    "lr_scheduler": self.lr_scheduler.state_dict(),
+                    "log": self.log,
+                    "epoch": self.epoch,
+                },
+                self.get_model_storage_fname()
+            )
+        except Exception as e:
+            print("Failed storing", {
+                "fname": self.get_model_storage_fname(),
+            })
+            raise e
 
     def run(
         self,
@@ -148,7 +156,7 @@ class TrainingLoop:
             # Train
             self.model.train(True)
             loss_sum = 0
-            for (images, labels_01) in tqdm(train_dl, f"Epoch {self.epoch} (training) {self.name}"):
+            for (images, labels_01) in tqdm(train_dl, f"{self.experiment_name}: Epoch {self.epoch} (training) {self.name}"):
                 labels_01 = labels_01.cuda() if USE_GPU else labels_01
                 loss = self.model.loss(images, labels_01)
                 loss.backward(inputs=parameters)
@@ -162,7 +170,7 @@ class TrainingLoop:
                 "epoch": self.epoch,
                 "name": self.name,
                 "loss_sum": float(loss_sum),
-                "performance_metrics": evaluate(self.model, test_dl, self.epoch, self.angle_range),
+                "performance_metrics": evaluate(self.model, test_dl, self.epoch, self.angle_range, self.experiment_name),
                 "min_prediction": float(self.model.min_prediction),
                 "max_prediction": float(self.model.max_prediction),
                 "min_label": float(self.model.min_label),
