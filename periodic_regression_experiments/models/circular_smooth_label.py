@@ -16,6 +16,7 @@ class WindowFn:
         assert isinstance(diff_wrap, torch.Tensor)
         out = self.__get_weights__(diff_wrap)
         assert out.shape == diff_wrap.shape
+        assert ((0 <= out) & (out <= 1)).all(), out
         return out
 
 
