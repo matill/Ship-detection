@@ -5,7 +5,6 @@ from typing import Dict, List, Tuple
 import torch
 from torch.optim import Adam
 from torch.utils.data.dataloader import DataLoader
-from real_experiment_cfg import get_anchor_priors
 from yolo_lib.data.yolo_tile import YOLOTileStack
 from yolo_lib.data.fake_data import DsWeaknessCfg, ImgShapeCfg, SyntheticDs, VesselShapeCfg, FakeDataCfg
 from yolo_lib.data_augmentation.sat import SAT
@@ -26,7 +25,6 @@ from yolo_lib.display_detections import display_yolo_tile
 from yolo_lib.performance_metrics import get_default_performance_metrics
 from yolo_lib.training_loop import TrainingLoop
 from yolo_lib.model_storage import ModelStorage
-
 
 
 OUTPUT_DIR = "./out/the_effect_of_noisy_labels/log_files"

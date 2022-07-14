@@ -1,11 +1,12 @@
 from __future__ import annotations
 import json
-from typing import Dict, List, Tuple
+from typing import Callable, Dict, List, Tuple
 from matplotlib import pyplot as plt
 import torch
 import os
 import sys
 from torch.utils.data import DataLoader
+from scripts.script import Script
 from yolo_lib.data.dataclasses import YOLOTile, YOLOTileStack
 from yolo_lib.data_augmentation.data_augmentation import DataAugmentation
 from yolo_lib.data_augmentation.flat_batch import FlatBatch
@@ -25,7 +26,7 @@ from yolo_lib.detectors.yolo_heads.losses.siou_box_loss import SIoUBoxLoss
 from yolo_lib.detectors.yolo_heads.losses.ciou_loss import DIoUBoxLoss
 from yolo_lib.detectors.yolo_heads.losses.sincos_losses import SinCosLoss
 from yolo_lib.model_storage import ModelStorage
-from ls_ssdd_dataset import LSSDDataset
+from dataset_classes.ls_ssdd_dataset import LSSDDataset
 from yolo_lib.performance_metrics import get_default_performance_metrics
 from yolo_lib.training_loop import TrainingLoop
 
@@ -62,6 +63,15 @@ IMAGE_CHANNELS = 1
 LONG_ATTENTION_NUM_LAYERS = 4
 ATTENTION_NUM_LAYERS = 2
 ATTENTION_NUM_CHANNELS = 64
+
+def get_script():
+    return Script(
+        {
+            "train": train,
+            "plot_training_log": plot_training_log,
+            "table": table,
+        }
+    )
 
 def identity_collate(tiles: List[YOLOTile]) -> List[YOLOTile]:
     return tiles
@@ -262,7 +272,6 @@ def plot_training_log():
     plt.legend()
     plt.show()
 
-
 def table():
     table = []
     for e in get_experiment_specs():
@@ -400,19 +409,3 @@ def table():
     #     }
     #     for e in table
     # ], indent=2))
-
-
-
-if __name__ == "__main__":
-    print("Args", sys.argv)
-    assert len(sys.argv) in [1, 2]
-    arg = "train" if len(sys.argv) == 1 else sys.argv[1]
-    assert arg in ["train", "plot_training_log", "table", "examples"]
-    if arg == "train":
-        train()
-    if arg == "plot_training_log":
-        plot_training_log()
-    if arg == "table":
-        table()
-    # if arg == "examples":
-    #     examples()
