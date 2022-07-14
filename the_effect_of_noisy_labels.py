@@ -6,18 +6,19 @@ import torch
 from torch.optim import Adam
 from torch.utils.data.dataloader import DataLoader
 from real_experiment_cfg import get_anchor_priors
-from yolo_lib import YOLOTileStack, FakeDataCfg
-from yolo_lib.data.fake_data import DsWeaknessCfg, ImgShapeCfg, SyntheticDs, VesselShapeCfg
+from yolo_lib.data.yolo_tile import YOLOTileStack
+from yolo_lib.data.fake_data import DsWeaknessCfg, ImgShapeCfg, SyntheticDs, VesselShapeCfg, FakeDataCfg
 from yolo_lib.data_augmentation.sat import SAT
 from yolo_lib.models.blocks.attention import MultilayerAttentionCfg
 from yolo_lib.detectors.cfg_types.dilated_encoder_cfg import EncoderConfig
 from yolo_lib.models.backbones import BackboneCfg
-from yolo_lib.detectors.cfg_types.head_cfg import LocalMatchingYOLOHeadCfg
+# from yolo_lib.detectors.cfg_types.head_cfg import LocalMatchingYOLOHeadCfg
 from yolo_lib.detectors.cfg_types.loss_cfg import FocalLossCfg
 from yolo_lib.detectors.managed_architectures.auxiliary_head_yolof import AuxiliaryHeadYOLOF
 from yolo_lib.detectors.managed_architectures.base_detector import BaseDetector
-from yolo_lib.detectors.yolo_heads.heads.managed_yolo_head import ManagedYOLOHead
-from yolo_lib.detectors.yolo_heads.yolo_head import OverlappingCellYOLOHead, PointPotoMatchlossCfg
+# from yolo_lib.detectors.yolo_heads.heads.managed_yolo_head import ManagedYOLOHead
+from yolo_lib.detectors.yolo_heads.yolo_head import YOLOHead
+# from yolo_lib.detectors.yolo_heads.yolo_head import OverlappingCellYOLOHead, PointPotoMatchlossCfg
 from yolo_lib.detectors.yolo_heads.losses.center_yx_losses import CenterYXSmoothL1
 from yolo_lib.detectors.yolo_heads.losses.siou_box_loss import SIoUBoxLoss
 from yolo_lib.detectors.yolo_heads.losses.sincos_losses import SinCosLoss
@@ -72,8 +73,8 @@ HEAD_VARIATIONS = [
 ]
 
 HEAD_VARIATION_PRETTY_NAMES = {
-    OVERLAPPING: "Overlapping(64px)",
-    OVERLAPPING_WIDE: "Overlapping(128px)",
+    OVERLAPPING: "Overlapping64",
+    OVERLAPPING_WIDE: "Overlapping128",
     NON_OVERLAPPING: "NonOverlapping",
 }
 
@@ -97,7 +98,7 @@ img_shape_cfg = ImgShapeCfg(
 def identity_collate(x):
     return x
 
-def get_head(variation: str) -> ManagedYOLOHead:
+def get_head(variation: str) -> YOLOHead:
     assert variation in HEAD_VARIATIONS
     if variation in [OVERLAPPING, OVERLAPPING_WIDE]:
         if variation == OVERLAPPING:
@@ -289,6 +290,53 @@ def plot():
     fig.savefig("out/the_effect_of_noisy_labels/figs/the_effect_of_noisy_labels.png")
 
 
+def plot_paper():
+    import matplotlib.pyplot as plt
+    from matplotlib.gridspec import GridSpec
+
+    # Figure "architecture"
+    fig = plt.figure(figsize=(5, 5))
+    gs = GridSpec(nrows=1, ncols=1)
+    ax0 = fig.add_subplot(gs[:, 0])
+    # ax1 = fig.add_subplot(gs[:, 1])
+
+    # Labels
+    # fig.suptitle('The effect of inaccurate position labels on dAP', fontsize=14)
+    ax0.set(ylabel="dAP (%)", xlabel="Max label inaccuracy (px)")
+    # ax1.set(ylabel="Predicted positions' inaccuracy (px)", xlabel="Max label inaccuracy (px)")
+
+    # Plot lines
+    for variation in [OVERLAPPING, OVERLAPPING_WIDE, NON_OVERLAPPING]:
+        print("variation", variation)
+        pretty_name = HEAD_VARIATION_PRETTY_NAMES[variation]
+
+        best_epoch_objs = []
+        for max_yx_error_px in INACCURACIES:
+            name = f"{variation}+MaxError({max_yx_error_px})"
+            path = os.path.join(OUTPUT_DIR, name, "training_log.json")
+            with open(path, "r") as F:
+                as_json = json.load(F)
+
+            best_epoch_objs.append(max(as_json, key=lambda log_obj: log_obj["performance_metrics"]["Distance-AP"]["AP"]))
+
+
+        print(json.dumps(best_epoch_objs, indent=2))
+        dap_measures = [best_epoch_obj["performance_metrics"]["Distance-AP"]["AP"] * 100 for best_epoch_obj in best_epoch_objs]
+        dist_measures = [best_epoch_obj["performance_metrics"]["Distance-AP"]["mean_center_distance"] for best_epoch_obj in best_epoch_objs]
+        siou_measures = [best_epoch_obj["performance_metrics"]["Distance-AP"]["avg_iou"] for best_epoch_obj in best_epoch_objs]
+        epochs = [best_epoch_obj["epoch"] for best_epoch_obj in best_epoch_objs]
+
+        # ap_measures = [read_best(variation, max_yx_error_px, "AP") for max_yx_error_px in INACCURACIES]
+        # f2_measures = [read_best(variation, max_yx_error_px, "F2") for max_yx_error_px in INACCURACIES]
+        ax0.plot(INACCURACIES, dap_measures, label=pretty_name)
+        # ax1.plot(INACCURACIES, dist_measures, label=pretty_name)
+
+    ax0.legend()
+    # ax1.legend()
+
+    fig.savefig("out/the_effect_of_noisy_labels/figs/the-effect-of-noisy-labels-paper.pdf")
+    fig.savefig("out/the_effect_of_noisy_labels/figs/the-effect-of-noisy-labels-paper.png")
+
 def train_img_samples():
     folder = "out/the_effect_of_noisy_labels/train_img_samples/"
     for max_yx_error_px in INACCURACIES:
@@ -321,10 +369,12 @@ if __name__ == "__main__":
     print("Args", sys.argv)
     assert len(sys.argv) in [1, 2]
     arg = "train" if len(sys.argv) == 1 else sys.argv[1]
-    assert arg in ["train", "plot", "train_img_samples"]
+    assert arg in ["train", "plot", "train_img_samples", "plot_paper"]
     if arg == "train":
         main()
     if arg == "plot":
         plot()
     if arg == "train_img_samples":
         train_img_samples()
+    if arg == "plot_paper":
+        plot_paper()
