@@ -59,6 +59,7 @@ LOSS_ADV_WEIGHT = 0.0
 RESNET_VARIATION = 34
 IMAGE_CHANNELS = 1
 
+LONG_ATTENTION_NUM_LAYERS = 4
 ATTENTION_NUM_LAYERS = 2
 ATTENTION_NUM_CHANNELS = 64
 
@@ -85,6 +86,8 @@ def get_model_cfg(assignment_loss_name: str, box_loss_name: str, attention_name:
     # Choose decoder neck (eg. multilayer attention, 3DMF, or none)
     if attention_name == "MultiLayerAttention":
         attention_cfg = MultilayerAttentionCfg(ATTENTION_NUM_CHANNELS, ATTENTION_NUM_LAYERS)
+    elif attention_name == "LongMultiLayerAttention":
+        attention_cfg = MultilayerAttentionCfg(ATTENTION_NUM_CHANNELS, LONG_ATTENTION_NUM_LAYERS)
     elif attention_name == "NoAttention":
         attention_cfg = NoAttentionCfg()
     elif attention_name == "SAM":
@@ -114,9 +117,10 @@ def get_model_configs() -> List[Dict[str, str]]:
     return [
 
         # Comparison of MultiLayerAttention, NoAttention, and 3DMF
-        {"dataset_name": "LS-SSDD", "assignment_loss_name": "L2", "box_loss_name": "L1+SIoU", "attention_name": "NoAttention"},
+        {"dataset_name": "LS-SSDD", "assignment_loss_name": "L2", "box_loss_name": "L1+SIoU", "attention_name": "LongMultiLayerAttention"},
         {"dataset_name": "LS-SSDD", "assignment_loss_name": "L2", "box_loss_name": "L1+SIoU", "attention_name": "MultiLayerAttention"},
         {"dataset_name": "LS-SSDD", "assignment_loss_name": "L2", "box_loss_name": "L1+SIoU", "attention_name": "SAM"},
+        {"dataset_name": "LS-SSDD", "assignment_loss_name": "L2", "box_loss_name": "L1+SIoU", "attention_name": "NoAttention"},
 
         # Comparison of [L1+SIoU vs L1 vs DIoU] and [IoU vs L2 vs L2+SIoU]
         {"dataset_name": "LS-SSDD", "assignment_loss_name": "L2+SIoU", "box_loss_name": "L1+SIoU"},
@@ -228,7 +232,8 @@ def plot_training_log():
     model_cfgs = [
         {"dataset_name": "LS-SSDD", "assignment_loss_name": "L2", "box_loss_name": "L1+SIoU", "attention_name": "NoAttention"},
         {"dataset_name": "LS-SSDD", "assignment_loss_name": "L2", "box_loss_name": "L1+SIoU", "attention_name": "MultiLayerAttention"},
-        # {"dataset_name": "LS-SSDD", "assignment_loss_name": "L2", "box_loss_name": "L1+SIoU", "attention_name": "SAM"},
+        {"dataset_name": "LS-SSDD", "assignment_loss_name": "L2", "box_loss_name": "L1+SIoU", "attention_name": "LongMultiLayerAttention"},
+        {"dataset_name": "LS-SSDD", "assignment_loss_name": "L2", "box_loss_name": "L1+SIoU", "attention_name": "SAM"},
     ]
 
     for config_dict in model_cfgs:
@@ -240,7 +245,8 @@ def plot_training_log():
         model_name = get_model_name(dataset_name, assignment_loss_name, box_loss_name, attention_name)
         pretty_name = {
             "NoAttention": "No attention",
-            "MultiLayerAttention": "Multilayer attention",
+            "MultiLayerAttention": "Multilayer attention (2-layer)",
+            "LongMultiLayerAttention": "Multilayer attention (4-layer)",
             "SAM": "YOLOv4 SAM",
         }[attention_name]
 
@@ -251,6 +257,7 @@ def plot_training_log():
         d_ap_vals = [x["performance_metrics"]["Distance-AP"]["AP"] for x in log]
         epochs = [x["epoch"] for x in log]
         plt.plot(epochs, d_ap_vals, label=pretty_name)
+        print(f"{pretty_name} : {max(d_ap_vals)}")
     
     plt.legend()
     plt.show()
