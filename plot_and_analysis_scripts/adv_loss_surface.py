@@ -66,9 +66,11 @@ def plot_loss(loss, name, ax):
     ax.get_yaxis().set_visible(False)
 
     # cp = ax.contour(X, Y, loss)
+    # cp = ax.contour(X, Y, loss, NUM_CONTOURS)
     cp = ax.contourf(X, Y, loss, NUM_CONTOURS)
     ax.clabel(cp, inline=False, fontsize=10)
-    ax.set_title(name)
+    if name:
+        ax.set_title(name)
 
     # Unit circle and "cross hair"
     ax.add_artist(plt.Circle((0, 0), 1, fill=False, color=LINE_COLOR, linewidth=LINE_WIDTH))
@@ -85,17 +87,30 @@ def plot_loss(loss, name, ax):
 
 
 from matplotlib.gridspec import GridSpec
+
+# fig, axs = plt.subplots(1, 3, sharey=True, squeeze=False)
+
+# Masters thesis figure
 fig = plt.figure(figsize=(15, 5))
 gs = GridSpec(nrows=1, ncols=3)
 ax0 = fig.add_subplot(gs[:, 0])
 ax1 = fig.add_subplot(gs[:, 1])
 ax2 = fig.add_subplot(gs[:, 2])
-
-# fig, axs = plt.subplots(1, 3, sharey=True, squeeze=False)
 plot_loss(loss_1, "Loss (unit)", ax0)
 plot_loss(loss_2, "Loss (mse)", ax1)
 plot_loss(loss_3, "Loss (mse-w)", ax2)
-# fig.show()
 plt.savefig("out/adv-loss-surfaces.png", bbox_inches='tight')
+plt.close("all")
+
+# Paper figure
+fig = plt.figure(figsize=(5, 5))
+gs = GridSpec(nrows=1, ncols=1)
+ax0 = fig.add_subplot(gs[:, 0])
+plot_loss(loss_3, None, ax0)
+# plot_loss(loss_2, "Loss (mse)", ax1)
+# plot_loss(loss_3, "Loss (mse-w)", ax2)
+plt.savefig("out/adv-loss-surfaces-paper.png", bbox_inches='tight')
+plt.close("all")
+
 # plt.savefig("test.png")
 # plt.show()
