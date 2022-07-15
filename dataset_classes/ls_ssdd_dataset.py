@@ -1,25 +1,19 @@
 from __future__ import annotations
 from typing import List, Tuple
 import torch
-import matplotlib.pyplot as plt
 import os
 from torch.utils.data import Dataset
+from dataset_classes.read_jpeg import read_jpeg
 from yolo_lib.data.annotation import AnnotationBlock
 from yolo_lib.data.string_dataset import StringDataset
-from yolo_lib.data.dataclasses import YOLOTile, YOLOTileStack
+from yolo_lib.data.dataclasses import YOLOTile
 import xml.etree.ElementTree as ET
 
 DATA_BASE_PATH = "./datasets/LS-SSDD-v1.0-OPEN"
 XML_BASE_PATH = os.path.join(DATA_BASE_PATH, "Annotations_sub")
 JPEG_BASE_PATH = os.path.join(DATA_BASE_PATH, "JPEGImages_sub")
+IMAGE_SETS_BASE_PATH = os.path.join(DATA_BASE_PATH, "ImageSets/Main")
 TILE_SIZE = 800
-
-def read_jpeg(path: str) -> torch.Tensor:
-    image_np = plt.imread(path, format="jpeg")
-    image_torch = torch.tensor(image_np)
-    image_torch_avg = image_torch.sum(dim=2) / 3
-    assert image_torch_avg.shape == (TILE_SIZE, TILE_SIZE)
-    return image_torch_avg
 
 
 def read_xml(path: str) -> AnnotationBlock:
@@ -92,7 +86,7 @@ class LSSDDataset(Dataset):
 
     @staticmethod
     def get_subset_filenames(filename: str) -> LSSDDataset:
-        path = os.path.join(DATA_BASE_PATH, "ImageSets/Main", filename)
+        path = os.path.join(IMAGE_SETS_BASE_PATH, filename)
         print("path", path)
         with open(path, "r") as F:
             lines = F.read().split("\n")
@@ -115,8 +109,7 @@ class LSSDDataset(Dataset):
         # Get image
         grid_name = self.name_string_ds.__getitem__(index)
         jpeg_name = os.path.join(JPEG_BASE_PATH, f"{grid_name}.jpg")
-        img = read_jpeg(jpeg_name)
-        assert img.shape == (TILE_SIZE, TILE_SIZE)
+        img = read_jpeg(jpeg_name, TILE_SIZE)
 
         # Get json representation of annotation, and create AnnotationBlock
         annotation_str = self.annotation_string_ds[index]
@@ -125,3 +118,4 @@ class LSSDDataset(Dataset):
 
     def __len__(self) -> int:
         return len(self.name_string_ds)
+

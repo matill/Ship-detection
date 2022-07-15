@@ -1,9 +1,8 @@
 from __future__ import annotations
 from typing import List, Tuple
-import torch
-import matplotlib.pyplot as plt
 import os
 from torch.utils.data import Dataset
+from dataset_classes.ls_ssdd_dataset import read_jpeg
 from yolo_lib.data.annotation import AnnotationBlock
 from yolo_lib.data.string_dataset import StringDataset
 from yolo_lib.data.dataclasses import YOLOTile
@@ -14,14 +13,6 @@ DATA_BASE_PATH = "./datasets/HRSID_JPG"
 ANNOTATION_BASE_PATH = os.path.join(DATA_BASE_PATH, "annotations")
 JPEG_BASE_PATH = os.path.join(DATA_BASE_PATH, "JPEGImages")
 TILE_SIZE = 800
-
-
-def read_jpeg(path: str) -> torch.Tensor:
-    image_np = plt.imread(path, format="jpeg")
-    image_torch = torch.tensor(image_np)
-    image_torch_avg = image_torch.sum(dim=2) / 3
-    assert image_torch_avg.shape == (TILE_SIZE, TILE_SIZE)
-    return image_torch_avg
 
 
 class HRSIDDataset(Dataset):
@@ -61,7 +52,7 @@ class HRSIDDataset(Dataset):
         as_dict = json.loads(self.string_dataset[idx])
         img_fname = as_dict["fn"]
         img_path = os.path.join(JPEG_BASE_PATH, img_fname)
-        img = read_jpeg(img_path)
+        img = read_jpeg(img_path, TILE_SIZE)
         annotations = AnnotationBlock.from_dict_list(as_dict["an"])
         return YOLOTile(img[None, None], annotations)
 
