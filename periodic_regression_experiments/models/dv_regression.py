@@ -101,7 +101,7 @@ class ProjectedPDVBase(PDV):
         # projection_1 should be 1
         # projection_2 should be 0
         weight_1 = self.WEIGHT_1
-        weight_2 = self.WEIGHT_1
+        weight_2 = self.WEIGHT_2
         loss_1 = (projection_1 - 1).square()
         loss_2 = projection_2.square()
         loss = loss_1.sum() * weight_1 + loss_2.sum() * weight_2
