@@ -5,8 +5,7 @@ from torch import Tensor
 import torch
 from yolo_lib.data.dataclasses import DetectionBlock, YOLOTileStack
 from yolo_lib.data.detection import DetectionGrid
-from yolo_lib.detectors.cfg_types.head_cfg import YOLOHeadCfg
-from yolo_lib.detectors.yolo_heads.yolo_head import YOLOHead
+from yolo_lib.detectors.yolo_heads.yolo_head import YOLOHead, YOLOHeadCfg
 from yolo_lib.models.blocks.dilated_encoder import EncoderConfig
 from yolo_lib.models.blocks.attention import AttentionCfg
 from yolo_lib.detectors.managed_architectures.base_detector import BaseDetector, DetectorCfg

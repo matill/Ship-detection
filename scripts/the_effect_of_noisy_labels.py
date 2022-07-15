@@ -7,7 +7,7 @@ from scripts.script import Script
 from yolo_lib.data.yolo_tile import YOLOTileStack
 from dataset_classes.fake_data import DsWeaknessCfg, ImgShapeCfg, SyntheticDs, VesselShapeCfg, FakeDataCfg
 from yolo_lib.data_augmentation.sat import SAT
-from yolo_lib.detectors.cfg_types.head_cfg import YOLOHeadCfg
+from yolo_lib.detectors.yolo_heads.yolo_head import YOLOHeadCfg
 from yolo_lib.detectors.managed_architectures.attention_yolof import AttentionYOLOFCfg
 from yolo_lib.detectors.yolo_heads.label_assignment.label_assignment_cfg import DistanceBasedNonOverlappingAssignmentLossCfg, DistanceBasedOverlappingAssignmentLossCfg
 from yolo_lib.models.blocks.attention import MultilayerAttentionCfg
