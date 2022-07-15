@@ -3,34 +3,6 @@ from torch import nn
 from yolo_lib.cfg import SAFE_MODE, DEVICE
 
 
-class SoftBinaryFocalLoss(nn.Module):
-    def __init__(self, gamma: int, pos_loss_weight: float, neg_loss_weight: float):
-        super().__init__()
-        self.gamma = gamma
-        self.pos_loss_weight = pos_loss_weight
-        self.neg_loss_weight = neg_loss_weight
-
-    def forward(
-        self,
-        logits: torch.Tensor,
-        ground_truth: torch.Tensor,
-    ) -> torch.Tensor:
-        assert logits.shape == ground_truth.shape
-        assert ground_truth.dtype in [torch.float32, torch.float64], f"Expected float, got {ground_truth.dtype}"
-        assert logits.dtype in [torch.float32, torch.float64], f"Expected float, got {logits.dtype}"
-
-        pos_exp = 1 + torch.exp(logits)
-        neg_exp = 1 + torch.exp(-logits)
-        pos_loss = torch.log(neg_exp) * (pos_exp ** -self.gamma) * self.pos_loss_weight
-        neg_loss = torch.log(pos_exp) * (neg_exp ** -self.gamma) * self.neg_loss_weight
-
-        pos_assignment = ground_truth
-        neg_assignment = -ground_truth
-        loss = pos_loss * pos_assignment + neg_loss * neg_assignment
-        assert loss.shape == logits.shape
-        return loss
-
-
 class BinaryFocalLoss(nn.Module):
     def __init__(self, gamma, pos_loss_weight, neg_loss_weight):
         super().__init__()

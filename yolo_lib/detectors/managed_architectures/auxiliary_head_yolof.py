@@ -5,7 +5,7 @@ from yolo_lib.data.dataclasses import DetectionBlock, YOLOTileStack
 from yolo_lib.data.detection import DetectionGrid
 from yolo_lib.models.blocks.attention import AttentionCfg, AttentionModule
 from yolo_lib.detectors.yolo_heads.yolo_head import YOLOHead
-from yolo_lib.detectors.cfg_types.dilated_encoder_cfg import EncoderConfig
+from yolo_lib.models.blocks.dilated_encoder import EncoderConfig
 from yolo_lib.detectors.managed_architectures.base_detector import BaseDetector
 from yolo_lib.models.backbones import BackBone
 

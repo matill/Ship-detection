@@ -14,12 +14,12 @@ from yolo_lib.data_augmentation.mosaic import Mosaic
 from yolo_lib.data_augmentation.random_crop import RandomCrop
 from yolo_lib.data_augmentation.sat import SAT
 from yolo_lib.models.blocks.attention import AttentionCfg, MultilayerAttentionCfg, NoAttentionCfg, YOLOv4AttentionCfg
-from yolo_lib.detectors.cfg_types.dilated_encoder_cfg import EncoderConfig
-from yolo_lib.detectors.managed_architectures.attention_yolof import AttentionYOLOF
+from yolo_lib.models.blocks.dilated_encoder import EncoderConfig
+from yolo_lib.detectors.managed_architectures.attention_yolof import AttentionYOLOF, AttentionYOLOFCfg
+from yolo_lib.detectors.managed_architectures.base_detector import DetectorCfg
 from yolo_lib.detectors.yolo_heads.label_assignment.label_assignment_cfg import DistanceBasedOverlappingAssignmentLossCfg, IoUBasedOverlappingAssignmentLossCfg
 from yolo_lib.models.backbones import BackboneCfg
-from yolo_lib.detectors.cfg_types.detector_cfg import AttentionYOLOFCfg, DetectorCfg
-from yolo_lib.detectors.cfg_types.loss_cfg import FocalLossCfg
+from yolo_lib.detectors.yolo_heads.losses.objectness_loss import FocalLossCfg
 from yolo_lib.detectors.yolo_heads.yolo_head import YOLOHeadCfg
 from yolo_lib.detectors.yolo_heads.losses.center_yx_losses import CenterYXSmoothL1
 from yolo_lib.detectors.yolo_heads.losses.siou_box_loss import SIoUBoxLoss

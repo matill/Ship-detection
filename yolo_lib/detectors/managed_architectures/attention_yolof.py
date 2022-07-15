@@ -1,13 +1,32 @@
+from __future__ import annotations
+from dataclasses import dataclass
 from typing import Dict, List, Optional, Tuple
 from torch import Tensor
 import torch
 from yolo_lib.data.dataclasses import DetectionBlock, YOLOTileStack
 from yolo_lib.data.detection import DetectionGrid
+from yolo_lib.detectors.cfg_types.head_cfg import YOLOHeadCfg
 from yolo_lib.detectors.yolo_heads.yolo_head import YOLOHead
-from yolo_lib.detectors.cfg_types.dilated_encoder_cfg import EncoderConfig
+from yolo_lib.models.blocks.dilated_encoder import EncoderConfig
 from yolo_lib.models.blocks.attention import AttentionCfg
-from yolo_lib.detectors.managed_architectures.base_detector import BaseDetector
-from yolo_lib.models.backbones import BackBone
+from yolo_lib.detectors.managed_architectures.base_detector import BaseDetector, DetectorCfg
+from yolo_lib.models.backbones import BackBone, BackboneCfg
+
+
+@dataclass
+class AttentionYOLOFCfg(DetectorCfg):
+    head_cfg: YOLOHeadCfg
+    backbone_cfg: BackboneCfg
+    dileated_encoder_cfg: EncoderConfig
+    attention_cfg: AttentionCfg
+
+    def build(self) -> AttentionYOLOF:
+        return AttentionYOLOF(
+            self.backbone_cfg.build(),
+            self.dileated_encoder_cfg,
+            self.attention_cfg,
+            self.head_cfg.build(self.dileated_encoder_cfg.out_channels)
+        )
 
 
 class AttentionYOLOF(BaseDetector):

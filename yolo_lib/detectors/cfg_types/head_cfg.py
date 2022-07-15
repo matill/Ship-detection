@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 import torch
-from yolo_lib.detectors.cfg_types.loss_cfg import FocalLossCfg
+from yolo_lib.detectors.yolo_heads.losses.objectness_loss import FocalLossCfg
 from yolo_lib.detectors.yolo_heads.label_assigner.hungarian_matching import HungarianMatching
 from yolo_lib.detectors.yolo_heads.heads.managed_yolo_head import ManagedYOLOHead
 from yolo_lib.detectors.yolo_heads.overlapping_cell_yolo_head import OverlappingCellYOLOHead, PointPotoMatchloss, PotoMatchloss, PotoMatchlossCfg

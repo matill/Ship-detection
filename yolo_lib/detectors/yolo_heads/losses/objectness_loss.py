@@ -1,7 +1,22 @@
+from __future__ import annotations
 import torch
-import torch.nn as nn
+from torch import nn, Tensor
+from dataclasses import dataclass
 from yolo_lib.cfg import DEVICE
-from yolo_lib.detectors.yolo_heads.label_assigner.label_assigner import LabelAssignment
+from yolo_lib.detectors.yolo_heads.label_assignment.label_assignment import LabelAssignment
+from yolo_lib.models.binary_focal_loss import BinaryFocalLoss
+
+
+@dataclass
+class FocalLossCfg:
+    neg_weight: float
+    pos_weight: float
+    gamma: int
+
+    def build(self) -> ConfidenceUnawareObjectnessLoss:
+        return ConfidenceUnawareObjectnessLoss(
+            BinaryFocalLoss(self.gamma, self.pos_weight, self.neg_weight)
+        )
 
 
 class ConfidenceUnawareObjectnessLoss(nn.Module):
@@ -11,7 +26,7 @@ class ConfidenceUnawareObjectnessLoss(nn.Module):
 
     def forward(
         self,
-        pre_activation_o: torch.Tensor,
+        pre_activation_o: Tensor,
         assignment: LabelAssignment,
     ):
         # Set up ground-truth objectness probabilities

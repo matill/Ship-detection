@@ -9,10 +9,10 @@ from yolo_lib.data.yolo_tile import YOLOTileStack
 from dataset_classes.fake_data import DsWeaknessCfg, ImgShapeCfg, SyntheticDs, VesselShapeCfg, FakeDataCfg
 from yolo_lib.data_augmentation.sat import SAT
 from yolo_lib.models.blocks.attention import MultilayerAttentionCfg
-from yolo_lib.detectors.cfg_types.dilated_encoder_cfg import EncoderConfig
+from yolo_lib.models.blocks.dilated_encoder import EncoderConfig
 from yolo_lib.models.backbones import BackboneCfg
 # from yolo_lib.detectors.cfg_types.head_cfg import LocalMatchingYOLOHeadCfg
-from yolo_lib.detectors.cfg_types.loss_cfg import FocalLossCfg
+from yolo_lib.detectors.yolo_heads.losses.objectness_loss import FocalLossCfg
 from yolo_lib.detectors.managed_architectures.auxiliary_head_yolof import AuxiliaryHeadYOLOF
 from yolo_lib.detectors.managed_architectures.base_detector import BaseDetector
 # from yolo_lib.detectors.yolo_heads.heads.managed_yolo_head import ManagedYOLOHead
