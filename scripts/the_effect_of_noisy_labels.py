@@ -24,8 +24,9 @@ from yolo_lib.training_loop import TrainingLoop
 from yolo_lib.model_storage import ModelStorage
 
 
-OUTPUT_DIR = "./out/the_effect_of_noisy_labels/log_files"
-MODEL_STORAGE_DIR = "./out/the_effect_of_noisy_labels/model_storage"
+OUTPUT_BASE_DIR = "./out/the_effect_of_noisy_labels"
+LOG_FILE_DIR = os.path.join(OUTPUT_BASE_DIR, "log_files")
+MODEL_STORAGE_DIR = os.path.join(OUTPUT_BASE_DIR, "model_storage")
 
 # Architecture configuration
 NUM_HEADS = 4
@@ -202,7 +203,6 @@ def run_experiment(
         optimizer,
         [SAT(0.2, 10, 0.01, 0.1)],
         get_default_performance_metrics(),
-        [],
         lr_scheduler_lambda,
         MAX_EPOCHS,
     )
@@ -215,7 +215,7 @@ def run_experiment(
         train_dl,
         test_dl,
         displayed_test_dl,
-        OUTPUT_DIR
+        LOG_FILE_DIR
     )
 
 def read_f2(epoch_log_obj) -> float:

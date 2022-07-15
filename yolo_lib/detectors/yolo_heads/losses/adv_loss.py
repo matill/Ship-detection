@@ -9,6 +9,7 @@ from yolo_lib.util import check_tensor
 class ADVLoss(nn.Module):
     def __init__(self, eccentricity: float=3.0) -> None:
         # NOTE: Might be using the word "eccentricity" a bit wrong here.
+        # eccentricity = lambda_2 / lambda_1, given lambda_1 + lambda_2 == 2
         assert 1.0 <= eccentricity, f"Eccentricity of elliptic loss function must be greater than one"
         super().__init__()
         self.eccentricity = eccentricity

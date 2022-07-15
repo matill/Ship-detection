@@ -1,5 +1,4 @@
 from __future__ import annotations
-from collections import OrderedDict
 import json
 import torch
 import os
@@ -16,28 +15,6 @@ from yolo_lib.performance_metrics.base_performance_metric import BasePerformance
 from yolo_lib.timer import Timer
 from yolo_lib.data.dataclasses import DetectionBlock, YOLOTileStack
 from tqdm import tqdm
-import itertools
-
-__all__ = ["TrainCallback", "TrainingLoop"]
-
-
-class TrainCallback:
-    def call(
-        self,
-        train_loop: TrainingLoop,
-        epoch: int,
-        training_log: List[Dict],
-    ):
-        pass
-
-
-class LambdaTrainCallback(TrainCallback):
-    def __init__(self, callback: Callable[[TrainingLoop, int, List[Dict]], None]) -> None:
-        super().__init__()
-        self.callback = callback
-
-    def call(self, train_loop: TrainingLoop, epoch: int, training_log: List[Dict]):
-        self.callback(train_loop, epoch, training_log)
 
 
 class TrainingLoop(torch.nn.Module):
@@ -48,7 +25,6 @@ class TrainingLoop(torch.nn.Module):
         optimizer: optim.Optimizer,
         data_augmentations: List[DataAugmentation],
         performance_metrics: BasePerformanceMetric,
-        callbacks: List[TrainCallback],
         lr_scheduler_lambda: Callable[[int], float],
         max_epochs: int,
     ) -> None:
@@ -58,7 +34,6 @@ class TrainingLoop(torch.nn.Module):
         self.optimizer = optimizer
         self.data_augmentations = data_augmentations
         self.performance_metrics = performance_metrics
-        self.callbacks = callbacks
         self.lr_scheduler_lambda = lr_scheduler_lambda
         self.lr_scheduler = optim.lr_scheduler.LambdaLR(self.optimizer, self.lr_scheduler_lambda)
         self.max_epochs = max_epochs
@@ -107,7 +82,6 @@ class TrainingLoop(torch.nn.Module):
             print("resetting tasks")
             self.tasks = [
                 "RESET_CRT_LOG_OBJECT",
-                "RUN_CALLBACKS",
                 "TRAIN_EPOCH",
                 "CHECKPOINT",
                 "EVALUATE",
@@ -170,8 +144,6 @@ class TrainingLoop(torch.nn.Module):
                 break
             elif task == "RESET_CRT_LOG_OBJECT":
                 self.reset_crt_log_object()
-            elif task == "RUN_CALLBACKS":
-                self.run_callbacks(training_log)
             elif task == "TRAIN_EPOCH":
                 self.train_epoch(train_dl)
             elif task == "CHECKPOINT":
@@ -189,10 +161,6 @@ class TrainingLoop(torch.nn.Module):
                 raise ValueError(f"Unexpected task {task}")
 
         self.checkpoint(model_storage, epochs_per_checkpoint)
-
-    def run_callbacks(self, training_log: List[Dict]):
-        for callback in self.callbacks:
-            callback.call(self, self.epoch, training_log)
 
     def checkpoint(self, model_storage: ModelStorage, epochs_per_checkpoint: Optional[int]):
         # Store "latest" checkpoint

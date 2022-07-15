@@ -156,7 +156,6 @@ def get_training_loop(dataset_name: str, model_type_name: str) -> TrainingLoop:
         torch.optim.Adam(model.parameters(), 5e-5),
         get_data_augmentations(),
         get_default_performance_metrics(),
-        [],
         lr_scheduler_lambda,
         MAX_EPOCHS
     )
