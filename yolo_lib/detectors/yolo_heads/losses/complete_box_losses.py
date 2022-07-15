@@ -1,6 +1,6 @@
 import torch
 from yolo_lib.detectors.yolo_heads.annotation_encoding import PointAnnotationEncoding, SizeAnnotationEncoding
-from yolo_lib.detectors.yolo_heads.label_assigner.label_assigner import LabelAssignment
+from yolo_lib.detectors.yolo_heads.label_assignment.label_assignment import LabelAssignment
 
 
 class BoxLoss(torch.nn.Module):
