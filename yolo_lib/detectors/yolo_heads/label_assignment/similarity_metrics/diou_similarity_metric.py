@@ -1,10 +1,8 @@
-
-from dataclasses import dataclass
 import torch
 from torch import Tensor
 from yolo_lib.data.annotation import AnnotationBlock
 from yolo_lib.detectors.yolo_heads.label_assignment.similarity_metrics.similarity_metric_base import SimilarityMetric
-from yolo_lib.detectors.yolo_heads.output_vector_format import YOLO_Y, YOLO_X, YOLO_H, YOLO_W, YOLO_O, YOLO_SIN, YOLO_COS, YOLO_YX, YOLO_HW, YOLO_SINCOS
+from yolo_lib.detectors.yolo_heads.output_vector_format import YOLO_O, YOLO_YX, YOLO_HW
 from yolo_lib.util import check_tensor
 
 
@@ -64,7 +62,7 @@ class DIoUPotoMatchloss(SimilarityMetric):
         check_tensor(true_top_left, (num_objects_b, 2))
         check_tensor(true_bottom_right, (num_objects_b, 2))
 
-        # Smallest and largest top-left and bottom-right squares
+        # Smallest and largest top-left and bottom-right "corners"
         smallest_bottom_right = torch.min(predicted_bottom_right[:, :, None, :], true_bottom_right[None, None, :, :])
         largest_bottom_right = torch.max(predicted_bottom_right[:, :, None, :], true_bottom_right[None, None, :, :])
         largest_top_left = torch.max(predicted_top_left[:, :, None, :], true_top_left[None, None, :, :])

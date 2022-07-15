@@ -1,10 +1,8 @@
-
-from dataclasses import dataclass
 import torch
 from torch import Tensor
 from yolo_lib.data.annotation import AnnotationBlock
 from yolo_lib.detectors.yolo_heads.label_assignment.similarity_metrics.similarity_metric_base import SimilarityMetric
-from yolo_lib.detectors.yolo_heads.output_vector_format import YOLO_Y, YOLO_X, YOLO_H, YOLO_W, YOLO_O, YOLO_SIN, YOLO_COS, YOLO_YX, YOLO_HW, YOLO_SINCOS
+from yolo_lib.detectors.yolo_heads.output_vector_format import YOLO_O, YOLO_YX, YOLO_HW
 from yolo_lib.util import check_tensor
 
 

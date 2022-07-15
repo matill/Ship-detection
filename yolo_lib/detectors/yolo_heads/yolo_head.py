@@ -1,19 +1,15 @@
 from __future__ import annotations
 from dataclasses import dataclass
-from typing import Dict, Optional, Tuple
+from typing import Dict, Tuple
 import torch
 from torch import nn, Tensor
-from yolo_lib.cfg import DEVICE, SAFE_MODE
+from yolo_lib.cfg import DEVICE
 from yolo_lib.data.annotation import AnnotationBlock
 from yolo_lib.data.detection import DetectionGrid
 from yolo_lib.data.dataclasses import YOLOTileStack
-from yolo_lib.detectors.yolo_heads.label_assigner.label_assigner import LabelAssignment
+from yolo_lib.detectors.yolo_heads.label_assignment.label_assignment import LabelAssignment
 from yolo_lib.detectors.yolo_heads.label_assignment.label_assignment_cfg import AssignmentLossCfg
 from yolo_lib.detectors.yolo_heads.label_assignment.spatial_prior.spatial_prior_base import SpatialPrior
-from yolo_lib.detectors.yolo_heads.label_assignment.spatial_prior.circular_spatial_prior import CircularSpatialPrior
-from yolo_lib.detectors.yolo_heads.label_assignment.spatial_prior.non_overlapping_spatial_prior import NonOverlappingSpatialPrior
-from yolo_lib.detectors.yolo_heads.label_assignment.similarity_metrics.distance_similarity_metric import PointPotoMatchloss
-from yolo_lib.detectors.yolo_heads.label_assignment.similarity_metrics.iou_similarity_metric import IoUPotoMatchloss
 from yolo_lib.detectors.yolo_heads.label_assignment.similarity_metrics.similarity_metric_base import SimilarityMetric
 from yolo_lib.detectors.yolo_heads.losses.sincos_losses import SinCosLoss
 from yolo_lib.detectors.yolo_heads.losses.complete_box_losses import BoxLoss
@@ -22,8 +18,7 @@ from yolo_lib.detectors.yolo_heads.annotation_encoding import PointAnnotationEnc
 from yolo_lib.models.blocks.conv5d import Conv5D
 from yolo_lib.util import check_tensor
 from scipy.optimize import linear_sum_assignment
-
-from yolo_lib.detectors.yolo_heads.output_vector_format import YOLO_Y, YOLO_X, YOLO_H, YOLO_W, YOLO_O, YOLO_SIN, YOLO_COS, YOLO_YX, YOLO_HW, YOLO_SINCOS
+from yolo_lib.detectors.yolo_heads.output_vector_format import YOLO_O, YOLO_YX, YOLO_HW, YOLO_SINCOS
 
 
 

@@ -18,7 +18,7 @@ from yolo_lib.detectors.cfg_types.dilated_encoder_cfg import EncoderConfig
 from yolo_lib.detectors.managed_architectures.attention_yolof import AttentionYOLOF
 from yolo_lib.detectors.yolo_heads.label_assignment.label_assignment_cfg import DistanceBasedOverlappingAssignmentLossCfg, IoUBasedOverlappingAssignmentLossCfg
 from yolo_lib.models.backbones import BackboneCfg
-from yolo_lib.detectors.cfg_types.detector_cfg import AttentionYOLOFCfg, AuxiliaryHeadYOLOFCfg, DetectorCfg
+from yolo_lib.detectors.cfg_types.detector_cfg import AttentionYOLOFCfg, DetectorCfg
 from yolo_lib.detectors.cfg_types.loss_cfg import FocalLossCfg
 from yolo_lib.detectors.yolo_heads.yolo_head import YOLOHeadCfg
 from yolo_lib.detectors.yolo_heads.losses.center_yx_losses import CenterYXSmoothL1

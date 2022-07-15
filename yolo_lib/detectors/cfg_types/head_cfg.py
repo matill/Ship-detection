@@ -1,7 +1,6 @@
 from dataclasses import dataclass
 import torch
 from yolo_lib.detectors.cfg_types.loss_cfg import FocalLossCfg
-from yolo_lib.detectors.yolo_heads.label_assigner.label_assigner import LabelAssigner
 from yolo_lib.detectors.yolo_heads.label_assigner.hungarian_matching import HungarianMatching
 from yolo_lib.detectors.yolo_heads.heads.managed_yolo_head import ManagedYOLOHead
 from yolo_lib.detectors.yolo_heads.overlapping_cell_yolo_head import OverlappingCellYOLOHead, PointPotoMatchloss, PotoMatchloss, PotoMatchlossCfg
@@ -37,10 +36,9 @@ class LocalMatchingYOLOHeadCfg(YOLOHeadCfg):
     loss_sincos_weight: float
 
     focal_loss: FocalLossCfg = focal_loss_standard
-    matching_strategy: LabelAssigner = None
     allow_180: bool = True
 
-    def get_matching_strategy(self) -> LabelAssigner:
+    def get_matching_strategy(self):
         if self.matching_strategy is None:
             return HungarianMatching(self.num_anchors)
         else:
