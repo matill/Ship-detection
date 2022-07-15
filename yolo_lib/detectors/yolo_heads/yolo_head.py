@@ -11,7 +11,7 @@ from yolo_lib.detectors.yolo_heads.label_assignment.label_assignment import Labe
 from yolo_lib.detectors.yolo_heads.label_assignment.label_assignment_cfg import AssignmentLossCfg
 from yolo_lib.detectors.yolo_heads.label_assignment.spatial_prior.spatial_prior_base import SpatialPrior
 from yolo_lib.detectors.yolo_heads.label_assignment.similarity_metrics.similarity_metric_base import SimilarityMetric
-from yolo_lib.detectors.yolo_heads.losses.sincos_losses import SinCosLoss
+from yolo_lib.detectors.yolo_heads.losses.adv_loss import ADVLoss
 from yolo_lib.detectors.yolo_heads.losses.complete_box_losses import BoxLoss
 from yolo_lib.detectors.yolo_heads.losses.objectness_loss import ConfidenceUnawareObjectnessLoss
 from yolo_lib.detectors.yolo_heads.annotation_encoding import PointAnnotationEncoding, SinCosAnnotationEncoding, SizeAnnotationEncoding
@@ -29,7 +29,7 @@ class YOLOHeadCfg:
 
     num_anchors: int
 
-    sincos_loss_fn: SinCosLoss
+    adv_loss_fn: ADVLoss
     complete_box_loss_fn: BoxLoss
     objectness_loss_fn: ConfidenceUnawareObjectnessLoss
 
@@ -45,7 +45,7 @@ class YOLOHeadCfg:
             self.yx_multiplier,
             self.assignment_loss_cfg,
 
-            self.sincos_loss_fn,
+            self.adv_loss_fn,
             self.complete_box_loss_fn,
             self.objectness_loss_fn,
 
@@ -66,7 +66,7 @@ class YOLOHead(nn.Module):
         yx_multiplier: float,
         assignment_loss_cfg: AssignmentLossCfg,
 
-        sincos_loss_fn: SinCosLoss,
+        adv_loss_fn: ADVLoss,
         complete_box_loss_fn: BoxLoss,
         objectness_loss_fn: ConfidenceUnawareObjectnessLoss,
 
@@ -78,7 +78,7 @@ class YOLOHead(nn.Module):
         assert isinstance(num_anchors, int)
         assert isinstance(yx_multiplier, float)
         assert isinstance(assignment_loss_cfg, AssignmentLossCfg)
-        assert isinstance(sincos_loss_fn, SinCosLoss)
+        assert isinstance(adv_loss_fn, ADVLoss)
         assert isinstance(complete_box_loss_fn, BoxLoss)
         assert isinstance(objectness_loss_fn, ConfidenceUnawareObjectnessLoss)
         assert isinstance(loss_objectness_weight, float)
@@ -87,7 +87,7 @@ class YOLOHead(nn.Module):
         assert (loss_objectness_weight + loss_box_weight + loss_sincos_weight) == 1
         super().__init__()
         self.complete_box_loss_fn = complete_box_loss_fn
-        self.sincos_loss_fn = sincos_loss_fn
+        self.adv_loss_fn = adv_loss_fn
         self.objectness_loss_fn = objectness_loss_fn
         self.matchloss_fn: SimilarityMetric = assignment_loss_cfg.get_similarity_metric_fn(yx_multiplier, num_anchors)
         self.spatial_prior_fn: SpatialPrior = assignment_loss_cfg.get_spatial_prior_fn(yx_multiplier)
@@ -158,7 +158,7 @@ class YOLOHead(nn.Module):
             torch.tanh(pre_activation[:, :, YOLO_YX, :, :]) * self.yx_multiplier + 0.5,
             torch.exp(pre_activation[:, :, YOLO_HW, :, :]),
             torch.sigmoid(pre_activation[:, :, [YOLO_O], :, :]),
-            torch.tanh(pre_activation[:, :, YOLO_SINCOS, :, :]) * 1.3,
+            pre_activation[:, :, YOLO_SINCOS, :, :],
         ], dim=2)
 
         assert post_activation.shape == pre_activation.shape
@@ -358,7 +358,7 @@ class YOLOHead(nn.Module):
             raise e
 
         # Get direction loss
-        sincos_loss = self.sincos_loss_fn(
+        sincos_loss = self.adv_loss_fn(
             post_activation[:, :, YOLO_SINCOS, :, :],
             sincos_annotation_encoding,
             assignment,

@@ -17,7 +17,7 @@ from yolo_lib.detectors.yolo_heads.losses.objectness_loss import FocalLossCfg
 from yolo_lib.detectors.managed_architectures.base_detector import BaseDetector
 from yolo_lib.detectors.yolo_heads.losses.center_yx_losses import CenterYXSmoothL1
 from yolo_lib.detectors.yolo_heads.losses.siou_box_loss import SIoUBoxLoss
-from yolo_lib.detectors.yolo_heads.losses.sincos_losses import SinCosLoss
+from yolo_lib.detectors.yolo_heads.losses.adv_loss import ADVLoss
 from yolo_lib.display_detections import display_yolo_tile
 from yolo_lib.performance_metrics import get_default_performance_metrics
 from yolo_lib.training_loop import TrainingLoop
@@ -140,7 +140,7 @@ def get_model(variation: str) -> BaseDetector:
         assignment_loss_cfg,
         yx_multiplier,
         NUM_HEADS,
-        SinCosLoss(),
+        ADVLoss(),
         SIoUBoxLoss(0.5, 0.5, CenterYXSmoothL1()),
         FocalLossCfg(neg_weight=0.3, pos_weight=1.0, gamma=2).build(),
         LOSS_OBJECTNESS_WEIGHT,
