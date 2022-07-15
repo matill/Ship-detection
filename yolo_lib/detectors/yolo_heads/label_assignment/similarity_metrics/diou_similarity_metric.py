@@ -8,7 +8,7 @@ from yolo_lib.detectors.yolo_heads.output_vector_format import YOLO_Y, YOLO_X, Y
 from yolo_lib.util import check_tensor
 
 
-class IoUPotoMatchloss(SimilarityMetric):
+class DIoUPotoMatchloss(SimilarityMetric):
     def __init__(self, num_anchors: int, matchloss_objectness_weight: float, matchloss_box_weight: float) -> None:
         super().__init__()
         assert isinstance(num_anchors, int)
@@ -51,7 +51,7 @@ class IoUPotoMatchloss(SimilarityMetric):
         check_tensor(post_activation_hw_b_posi, (num_posi_b, self.num_anchors, 2))
 
         # Target size and position
-        assert annotations_b.has_size_hw.bool().all(), f"IoUPotoMatchloss expects all annotations to have known HW"
+        assert annotations_b.has_size_hw.bool().all(), f"DIoUPotoMatchloss expects all annotations to have known HW"
         target_yx_b = annotations_b.center_yx / downsample_factor
         target_hw_b = annotations_b.size_hw / downsample_factor
         num_objects_b = annotations_b.size
@@ -64,13 +64,19 @@ class IoUPotoMatchloss(SimilarityMetric):
         check_tensor(true_top_left, (num_objects_b, 2))
         check_tensor(true_bottom_right, (num_objects_b, 2))
 
-        # Intersection area
+        # Smallest and largest top-left and bottom-right squares
         smallest_bottom_right = torch.min(predicted_bottom_right[:, :, None, :], true_bottom_right[None, None, :, :])
+        largest_bottom_right = torch.max(predicted_bottom_right[:, :, None, :], true_bottom_right[None, None, :, :])
         largest_top_left = torch.max(predicted_top_left[:, :, None, :], true_top_left[None, None, :, :])
+        smallest_top_left = torch.min(predicted_top_left[:, :, None, :], true_top_left[None, None, :, :])
+        check_tensor(smallest_bottom_right, (num_posi_b, self.num_anchors, num_objects_b, 2))
+        check_tensor(largest_bottom_right, (num_posi_b, self.num_anchors, num_objects_b, 2))
+        check_tensor(largest_top_left, (num_posi_b, self.num_anchors, num_objects_b, 2))
+        check_tensor(smallest_top_left, (num_posi_b, self.num_anchors, num_objects_b, 2))
+
+        # Intersection area
         intersections_hw = (smallest_bottom_right - largest_top_left).relu()
         intersections_area = intersections_hw.prod(dim=3)
-        check_tensor(smallest_bottom_right, (num_posi_b, self.num_anchors, num_objects_b, 2))
-        check_tensor(largest_top_left, (num_posi_b, self.num_anchors, num_objects_b, 2))
         check_tensor(intersections_hw, (num_posi_b, self.num_anchors, num_objects_b, 2))
         check_tensor(intersections_area, (num_posi_b, self.num_anchors, num_objects_b))
 
@@ -86,12 +92,44 @@ class IoUPotoMatchloss(SimilarityMetric):
         iou = intersections_area / union_area
         check_tensor(iou, (num_posi_b, self.num_anchors, num_objects_b))
 
+        # largest_bottom_right:      (num_posi_b  self.num_anchors, num_objects_b, 2)
+        # smallest_top_left:         (num_posi_b  self.num_anchors, num_objects_b, 2)
+        # big_box_diagonal:          (num_posi_b, self.num_anchors, num_objects_b, 2)
+        # big_box_diagonal_len_sqrd: (num_posi_b, self.num_anchors, num_objects_b   )
+        big_box_diagonal = largest_bottom_right - smallest_top_left
+        big_box_diagonal_len_sqrd = big_box_diagonal.square().sum(dim=3)
+        check_tensor(big_box_diagonal, (num_posi_b, self.num_anchors, num_objects_b, 2))
+        check_tensor(big_box_diagonal_len_sqrd, (num_posi_b, self.num_anchors, num_objects_b))
+
+        # Get the square of the distance between the center points of the annotation and
+        # the predicted box
+        # target_yx_b:                        (                              num_objects_b, 2)
+        # post_activation_yx_b_posi_absolute: (num_posi_b, self.num_anchors,                2)
+        # center_differences:                 (num_posi_b, self.num_anchors, num_objects_b, 2)
+        # center_differences_len_sqrd:        (num_posi_b, self.num_anchors, num_objects_b   )
+        center_differences = target_yx_b[None, None, :, :] - post_activation_yx_b_posi_absolute[:, :, None, :]
+        center_differences_len_sqrd = center_differences.square().sum(dim=3)
+        check_tensor(center_differences, (num_posi_b, self.num_anchors, num_objects_b, 2))
+        check_tensor(center_differences_len_sqrd, (num_posi_b, self.num_anchors, num_objects_b))
+
+        # Compute normalized L2 difference between predicted and true positions
+        normalized_l2 = center_differences_len_sqrd / big_box_diagonal_len_sqrd
+        check_tensor(normalized_l2, (num_posi_b, self.num_anchors, num_objects_b))
+
+        # Compute DIoU-loss and DIoU-similarity
+        # 0 <= DIoU-loss <= 2 
+        # 0 <= DIoU-similarity <= 1
+        diou_loss       = (1 - iou) + normalized_l2
+        diou_similarity = (2 - diou_loss) / 2
+        check_tensor(diou_loss, (num_posi_b, self.num_anchors, num_objects_b))
+        check_tensor(diou_similarity, (num_posi_b, self.num_anchors, num_objects_b))
+
         # Predicted positivity / objectness
         post_activation_o_b_posi = post_activation_b_posi[:, YOLO_O, :].T[:, :, None]
         check_tensor(post_activation_o_b_posi, (num_posi_b, self.num_anchors, 1))
 
         # Match quality: Weighted sum of IoU + objectness
-        match_loss_before_prior = (iou * self.matchloss_box_weight + post_activation_o_b_posi * self.matchloss_objectness_weight)
+        match_loss_before_prior = (diou_similarity * self.matchloss_box_weight + post_activation_o_b_posi * self.matchloss_objectness_weight)
         check_tensor(match_loss_before_prior, (num_posi_b, self.num_anchors, num_objects_b))
         return match_loss_before_prior
 
