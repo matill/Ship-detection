@@ -1,23 +1,20 @@
 import json
 import os
-import sys
-from typing import Dict, List, Tuple
 import torch
 from torch.optim import Adam
 from torch.utils.data.dataloader import DataLoader
+from scripts.script import Script
 from yolo_lib.data.yolo_tile import YOLOTileStack
 from dataset_classes.fake_data import DsWeaknessCfg, ImgShapeCfg, SyntheticDs, VesselShapeCfg, FakeDataCfg
 from yolo_lib.data_augmentation.sat import SAT
+from yolo_lib.detectors.cfg_types.head_cfg import YOLOHeadCfg
+from yolo_lib.detectors.managed_architectures.attention_yolof import AttentionYOLOFCfg
+from yolo_lib.detectors.yolo_heads.label_assignment.label_assignment_cfg import DistanceBasedNonOverlappingAssignmentLossCfg, DistanceBasedOverlappingAssignmentLossCfg
 from yolo_lib.models.blocks.attention import MultilayerAttentionCfg
 from yolo_lib.models.blocks.dilated_encoder import EncoderConfig
 from yolo_lib.models.backbones import BackboneCfg
-# from yolo_lib.detectors.cfg_types.head_cfg import LocalMatchingYOLOHeadCfg
 from yolo_lib.detectors.yolo_heads.losses.objectness_loss import FocalLossCfg
-from yolo_lib.detectors.managed_architectures.auxiliary_head_yolof import AuxiliaryHeadYOLOF
 from yolo_lib.detectors.managed_architectures.base_detector import BaseDetector
-# from yolo_lib.detectors.yolo_heads.heads.managed_yolo_head import ManagedYOLOHead
-from yolo_lib.detectors.yolo_heads.yolo_head import YOLOHead
-# from yolo_lib.detectors.yolo_heads.yolo_head import OverlappingCellYOLOHead, PointPotoMatchlossCfg
 from yolo_lib.detectors.yolo_heads.losses.center_yx_losses import CenterYXSmoothL1
 from yolo_lib.detectors.yolo_heads.losses.siou_box_loss import SIoUBoxLoss
 from yolo_lib.detectors.yolo_heads.losses.sincos_losses import SinCosLoss
@@ -30,37 +27,37 @@ from yolo_lib.model_storage import ModelStorage
 OUTPUT_DIR = "./out/the_effect_of_noisy_labels/log_files"
 MODEL_STORAGE_DIR = "./out/the_effect_of_noisy_labels/model_storage"
 
+# Architecture configuration
+NUM_HEADS = 4
+LOSS_YX_WEIGHT = 0.5
+LOSS_HW_WEIGHT = 0.5
+LOSS_OBJECTNESS_WEIGHT = 0.5
+LOSS_BOX_WEIGHT = 0.3
+LOSS_ADV_WEIGHT = 0.2
+
 # Image size
 TILE_SIZE = 512
 IMG_H = TILE_SIZE
 IMG_W = TILE_SIZE
-
 
 # Epochs
 MAX_EPOCHS = 100
 EPOCHS_PER_DISPLAY = 150
 EPOCHS_PER_CHECKPOINT = 50
 
-
 # Train set size
 IMGS_PER_EPOCH = 1600
 BATCH_SIZE = 8
-
 
 # Test set size
 TEST_SET_SIZE = 400
 NUM_DISPLAYED_TESTS = 0
 NUM_SILENT_TESTS = TEST_SET_SIZE - NUM_DISPLAYED_TESTS
 
-
+# Inaccuracy levels
 INACCURACIES = [0, 2, 4, 6, 8, 10, 15, 20, 25, 30, 35, 40, 50, 60]
-# INACCURACIES = [8, 15, 25, 35]
-# INACCURACIES = [0, 2, 4, 6, 8, 10, 20, 30, 40, 50, 60]
-# INACCURACIES = [0, 2, 4, 6, 8, 10, 15, 20, 25, 30, 35]
-# INACCURACIES = [40, 50, 60]
-# INACCURACIES = [0]
 
-
+# Model variations
 OVERLAPPING = "Overlapping"
 OVERLAPPING_WIDE = "OverlappingWide"
 NON_OVERLAPPING = "NonOverlapping"
@@ -69,7 +66,6 @@ HEAD_VARIATIONS = [
     OVERLAPPING_WIDE,
     NON_OVERLAPPING,
 ]
-
 HEAD_VARIATION_PRETTY_NAMES = {
     OVERLAPPING: "Overlapping64",
     OVERLAPPING_WIDE: "Overlapping128",
@@ -93,80 +89,74 @@ img_shape_cfg = ImgShapeCfg(
     max_real_vessels=3,
 )
 
+def get_script():
+    return Script(
+        {
+            "train": train,
+            "plot": plot,
+            "plot_paper": plot_paper,
+            "train_img_samples": train_img_samples,
+        }
+    )
+
+def train():
+    # Create test dataset
+    test_ds_weakness_cfg = DsWeaknessCfg(
+        rotation_known_probability=1.0,
+        hw_known_probability=1.0,
+        max_yx_error_px=0.0,
+    )
+    test_ds_cfg = FakeDataCfg.make(vessel_shape_cfg, img_shape_cfg, test_ds_weakness_cfg)
+    test_ds = SyntheticDs(NUM_SILENT_TESTS, test_ds_cfg, repeat=True)
+    displayed_test_ds = SyntheticDs(NUM_DISPLAYED_TESTS, test_ds_cfg, repeat=True)
+    displayed_test_dl = DataLoader(displayed_test_ds, BATCH_SIZE, collate_fn=identity_collate)
+    test_dl = DataLoader(test_ds, BATCH_SIZE, collate_fn=identity_collate)
+
+    # Run experiments
+    for max_yx_error_px in INACCURACIES:
+        for variation in HEAD_VARIATIONS:
+            torch.cuda.empty_cache()
+            run_experiment(variation, max_yx_error_px, test_dl, displayed_test_dl)
+
 def identity_collate(x):
     return x
 
-def get_head(variation: str) -> YOLOHead:
-    assert variation in HEAD_VARIATIONS
-    if variation in [OVERLAPPING, OVERLAPPING_WIDE]:
-        if variation == OVERLAPPING:
-            multiplier = 2.3
-            threshold = 2.0
-            match_yx_weight = 0.5
-            match_objectness_weight = 0.5
-        else:
-            multiplier = 4.3
-            threshold = 4.0
-            match_yx_weight = 0.3
-            match_objectness_weight = 0.7
-
-
-        print("variation", variation, "multiplier", multiplier, "threshold", threshold)
-        return OverlappingCellYOLOHead(
-            512,
-            4,
-            get_anchor_priors(4),
-            multiplier,
-            threshold,
-            PointPotoMatchlossCfg(match_objectness_weight, match_yx_weight, None),
-            SinCosLoss(False, False),
-            SIoUBoxLoss(0.5, 0.5, CenterYXSmoothL1()),
-            FocalLossCfg(neg_weight=0.3, pos_weight=1.0, gamma=2).build(),
-            0.5,
-            0.30,
-            0.2,
-        )
-    else:
-        return LocalMatchingYOLOHeadCfg(
-            512,
-            4,
-            get_anchor_priors(4),
-
-            0.5,
-            0.5,
-            0.0,
-            0.0,
-
-            0.5,
-            0.15,
-            0.15,
-            0.2,
-
-            allow_180=False
-        ).build()
-
 def get_model(variation: str) -> BaseDetector:
-    return AuxiliaryHeadYOLOF(
-        BackboneCfg(1, 34).build(),
-        EncoderConfig.default(),
-        MultilayerAttentionCfg(64,2),
-        get_head(variation),
-        LocalMatchingYOLOHeadCfg(
-            512,
-            4,
-            get_anchor_priors(4),
-            0.25,
-            0.25,
-            0.25,
-            0.25,
-            0.05,
-            0.10,
-            0.425,
-            0.425
-        ).build(),
-        0.1
-    ).cuda()
+    assert variation in HEAD_VARIATIONS
 
+    # Choose assignment loss and yx-multiplier (named "gamma" in paper)
+    if variation == OVERLAPPING:
+        assignment_loss_cfg = DistanceBasedOverlappingAssignmentLossCfg(2.0, False, 0.5, 0.5)
+        yx_multiplier = 2.3
+    elif variation == OVERLAPPING_WIDE:
+        assignment_loss_cfg = DistanceBasedOverlappingAssignmentLossCfg(4.0, False, 0.7, 0.3)
+        yx_multiplier = 4.3
+    elif variation == NON_OVERLAPPING:
+        assignment_loss_cfg = DistanceBasedNonOverlappingAssignmentLossCfg(False, 0.5, 0.5)
+        yx_multiplier = 4.3
+
+    # Create YOLOHeadCfg
+    head_cfg = YOLOHeadCfg(
+        assignment_loss_cfg,
+        yx_multiplier,
+        NUM_HEADS,
+        SinCosLoss(),
+        SIoUBoxLoss(0.5, 0.5, CenterYXSmoothL1()),
+        FocalLossCfg(neg_weight=0.3, pos_weight=1.0, gamma=2).build(),
+        LOSS_OBJECTNESS_WEIGHT,
+        LOSS_BOX_WEIGHT,
+        LOSS_ADV_WEIGHT,
+    )
+
+    return AttentionYOLOFCfg(
+        head_cfg,
+        BackboneCfg(1, 18),
+        EncoderConfig.default(),
+        MultilayerAttentionCfg(64, 2),
+    ).build()
+
+def get_model_name(max_yx_error_px: int, variation: str) -> str:
+    return f"{max_yx_error_px}__{variation}"
 
 def get_train_ds(max_yx_error_px: int) -> SyntheticDs:
     train_ds_weakness_cfg = DsWeaknessCfg(
@@ -176,7 +166,6 @@ def get_train_ds(max_yx_error_px: int) -> SyntheticDs:
     )
     train_ds_cfg = FakeDataCfg.make(vessel_shape_cfg, img_shape_cfg, train_ds_weakness_cfg)
     return SyntheticDs(IMGS_PER_EPOCH, train_ds_cfg, repeat=False)
-
 
 def run_experiment(
     variation: str,
@@ -190,7 +179,7 @@ def run_experiment(
     model_storage = ModelStorage(MODEL_STORAGE_DIR)
 
     # Experiment name
-    name = f"{variation}+MaxError({max_yx_error_px})"
+    name = get_model_name(max_yx_error_px, variation)
     print("name", name)
 
     # Create training set data loader
@@ -229,15 +218,11 @@ def run_experiment(
         OUTPUT_DIR
     )
 
-def postprocess():
-    pass
-
 def read_f2(epoch_log_obj) -> float:
     return epoch_log_obj["performance_metrics"]["Distance-AP"]["F2"]["F2"]
 
 def read_ap(epoch_log_obj) -> float:
     return epoch_log_obj["performance_metrics"]["Distance-AP"]["AP"]
-
 
 def read_best(variation: str, max_yx_error_px: int, metric: str) -> float:
     """Returns the best Distance-AP score for a given configuration"""
@@ -286,7 +271,6 @@ def plot():
 
     fig.savefig("out/the_effect_of_noisy_labels/figs/the_effect_of_noisy_labels.pdf")
     fig.savefig("out/the_effect_of_noisy_labels/figs/the_effect_of_noisy_labels.png")
-
 
 def plot_paper():
     import matplotlib.pyplot as plt
@@ -342,37 +326,3 @@ def train_img_samples():
         for tile, idx in zip(ds, range(10)):
             path = os.path.join(folder, f"error({max_yx_error_px})-idx({idx})")
             display_yolo_tile(tile, path)
-
-def main():
-
-    # Create test dataset
-    test_ds_weakness_cfg = DsWeaknessCfg(
-        rotation_known_probability=1.0,
-        hw_known_probability=1.0,
-        max_yx_error_px=0.0,
-    )
-    test_ds_cfg = FakeDataCfg.make(vessel_shape_cfg, img_shape_cfg, test_ds_weakness_cfg)
-    test_ds = SyntheticDs(NUM_SILENT_TESTS, test_ds_cfg, repeat=True)
-    displayed_test_ds = SyntheticDs(NUM_DISPLAYED_TESTS, test_ds_cfg, repeat=True)
-    displayed_test_dl = DataLoader(displayed_test_ds, BATCH_SIZE, collate_fn=identity_collate)
-    test_dl = DataLoader(test_ds, BATCH_SIZE, collate_fn=identity_collate)
-
-    # Run experiments
-    for max_yx_error_px in INACCURACIES:
-        for variation in HEAD_VARIATIONS:
-            torch.cuda.empty_cache()
-            run_experiment(variation, max_yx_error_px, test_dl, displayed_test_dl)
-
-if __name__ == "__main__":
-    print("Args", sys.argv)
-    assert len(sys.argv) in [1, 2]
-    arg = "train" if len(sys.argv) == 1 else sys.argv[1]
-    assert arg in ["train", "plot", "train_img_samples", "plot_paper"]
-    if arg == "train":
-        main()
-    if arg == "plot":
-        plot()
-    if arg == "train_img_samples":
-        train_img_samples()
-    if arg == "plot_paper":
-        plot_paper()

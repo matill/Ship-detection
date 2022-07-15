@@ -73,7 +73,6 @@ class DIoUBasedOverlappingAssignmentLossCfg(AssignmentLossCfg):
 
 @dataclass
 class DistanceBasedNonOverlappingAssignmentLossCfg(AssignmentLossCfg):
-    yx_match_threshold: float
     flat_prior: bool
 
     matchloss_objectness_weight: float
