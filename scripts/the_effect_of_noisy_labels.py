@@ -6,7 +6,7 @@ import torch
 from torch.optim import Adam
 from torch.utils.data.dataloader import DataLoader
 from yolo_lib.data.yolo_tile import YOLOTileStack
-from yolo_lib.data.fake_data import DsWeaknessCfg, ImgShapeCfg, SyntheticDs, VesselShapeCfg, FakeDataCfg
+from dataset_classes.fake_data import DsWeaknessCfg, ImgShapeCfg, SyntheticDs, VesselShapeCfg, FakeDataCfg
 from yolo_lib.data_augmentation.sat import SAT
 from yolo_lib.models.blocks.attention import MultilayerAttentionCfg
 from yolo_lib.detectors.cfg_types.dilated_encoder_cfg import EncoderConfig
