@@ -52,8 +52,6 @@ BATCH_SIZE = 8
 
 # Test set size
 TEST_SET_SIZE = 400
-NUM_DISPLAYED_TESTS = 0
-NUM_SILENT_TESTS = TEST_SET_SIZE - NUM_DISPLAYED_TESTS
 
 # Inaccuracy levels
 INACCURACIES = [0, 2, 4, 6, 8, 10, 15, 20, 25, 30, 35, 40, 50, 60]
@@ -108,16 +106,14 @@ def train():
         max_yx_error_px=0.0,
     )
     test_ds_cfg = FakeDataCfg.make(vessel_shape_cfg, img_shape_cfg, test_ds_weakness_cfg)
-    test_ds = SyntheticDs(NUM_SILENT_TESTS, test_ds_cfg, repeat=True)
-    displayed_test_ds = SyntheticDs(NUM_DISPLAYED_TESTS, test_ds_cfg, repeat=True)
-    displayed_test_dl = DataLoader(displayed_test_ds, BATCH_SIZE, collate_fn=identity_collate)
+    test_ds = SyntheticDs(TEST_SET_SIZE, test_ds_cfg, repeat=True)
     test_dl = DataLoader(test_ds, BATCH_SIZE, collate_fn=identity_collate)
 
     # Run experiments
     for max_yx_error_px in INACCURACIES:
         for variation in HEAD_VARIATIONS:
             torch.cuda.empty_cache()
-            run_experiment(variation, max_yx_error_px, test_dl, displayed_test_dl)
+            run_experiment(variation, max_yx_error_px, test_dl)
 
 def identity_collate(x):
     return x
@@ -154,7 +150,7 @@ def get_model(variation: str) -> BaseDetector:
         BackboneCfg(1, 18),
         EncoderConfig.default(),
         MultilayerAttentionCfg(64, 2),
-    ).build()
+    ).build().cuda()
 
 def get_model_name(max_yx_error_px: int, variation: str) -> str:
     return f"{max_yx_error_px}__{variation}"
@@ -172,7 +168,6 @@ def run_experiment(
     variation: str,
     max_yx_error_px: int,
     test_dl: DataLoader,
-    displayed_test_dl: DataLoader,
 ) -> None:
     assert variation in HEAD_VARIATIONS
 
@@ -205,18 +200,12 @@ def run_experiment(
         get_default_performance_metrics(),
         lr_scheduler_lambda,
         MAX_EPOCHS,
+        train_dl,
+        test_dl,
     )
 
     # Run training loop
-    training_loop.run(
-        EPOCHS_PER_DISPLAY,
-        EPOCHS_PER_CHECKPOINT,
-        model_storage,
-        train_dl,
-        test_dl,
-        displayed_test_dl,
-        LOG_FILE_DIR
-    )
+    training_loop.run(model_storage, LOG_FILE_DIR)
 
 def read_f2(epoch_log_obj) -> float:
     return epoch_log_obj["performance_metrics"]["Distance-AP"]["F2"]["F2"]

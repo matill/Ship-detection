@@ -163,6 +163,9 @@ def get_training_loop(dataset_name: str, assignment_loss_name: str, box_loss_nam
     name = get_model_name(dataset_name, assignment_loss_name, box_loss_name, attention_name)
     print(name)
 
+    # Get dataset
+    train_dl, test_dl = get_dataloaders(dataset_name)
+
     N = 10
     P = 0.95
     lr_scheduler_lambda = lambda i: ((i+1) / N) if i < N else P ** (i + 1 - N)
@@ -173,12 +176,14 @@ def get_training_loop(dataset_name: str, assignment_loss_name: str, box_loss_nam
         get_data_augmentations(),
         get_default_performance_metrics(),
         lr_scheduler_lambda,
-        MAX_EPOCHS
+        MAX_EPOCHS,
+        train_dl,
+        test_dl
     )
 
-def get_dataloaders(dataset_name: str) -> Tuple[DataLoader, DataLoader, DataLoader]:
+def get_dataloaders(dataset_name: str) -> Tuple[DataLoader, DataLoader]:
     if dataset_name == "LS-SSDD":
-        train_ds, test_ds, displayed_test_ds = LSSDDataset.get_split(NUM_DISPLAYED_TESTS)
+        train_ds, test_ds = LSSDDataset.get_split()
 
     train_dl = DataLoader(
         train_ds,
@@ -200,15 +205,7 @@ def get_dataloaders(dataset_name: str) -> Tuple[DataLoader, DataLoader, DataLoad
         persistent_workers=False,
     )
 
-    displayed_test_dl = DataLoader(
-        displayed_test_ds,
-        batch_size=TEST_BATCH_SIZE,
-        shuffle=False,
-        num_workers=0,
-        collate_fn=identity_collate,
-    )
-
-    return train_dl, test_dl, displayed_test_dl
+    return train_dl, test_dl
 
 def train():
     model_storage = ModelStorage(MODEL_STORAGE_DIR)
@@ -219,22 +216,11 @@ def train():
         box_loss_name = config_dict["box_loss_name"]
         attention_name = config_dict["attention_name"]
 
-        # Create dataset
-        train_dl, test_dl, displayed_test_dl = get_dataloaders(dataset_name)
-
         # Create model and training loop
         training_loop = get_training_loop(dataset_name, assignment_loss_name, box_loss_name, attention_name)
 
         # Train model
-        training_loop.run(
-            EPOCHS_PER_DISPLAY,
-            EPOCHS_PER_CHECKPOINT,
-            model_storage,
-            train_dl,
-            test_dl,
-            displayed_test_dl,
-            LOG_FILE_DIR
-        )
+        training_loop.run(model_storage, LOG_FILE_DIR)
 
 def plot_training_log():
     model_cfgs = [

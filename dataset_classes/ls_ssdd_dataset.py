@@ -93,17 +93,10 @@ class LSSDDataset(Dataset):
             return [line for line in lines if len(line)]
 
     @staticmethod
-    def get_split(num_displayed_tests: int) -> Tuple[LSSDDataset, LSSDDataset, LSSDDataset]:
-        train_ds = LSSDDataset.get_image_set("train.txt")
-        test_filenames = LSSDDataset.get_subset_filenames("test.txt")
-        test_ds = LSSDDataset(test_filenames[num_displayed_tests:])
-        displayed_test_ds = LSSDDataset(test_filenames[:num_displayed_tests])
-        return (train_ds, test_ds, displayed_test_ds)
-
-    @staticmethod
-    def get_image_set(filename: str) -> LSSDDataset:
-        lines = LSSDDataset.get_subset_filenames(filename)
-        return LSSDDataset(lines)
+    def get_split() -> Tuple[LSSDDataset, LSSDDataset, LSSDDataset]:
+        train_ds = LSSDDataset(LSSDDataset.get_subset_filenames("train.txt"))
+        test_ds = LSSDDataset(LSSDDataset.get_subset_filenames("test.txt"))
+        return (train_ds, test_ds)
 
     def __getitem__(self, index) -> YOLOTile:
         # Get image

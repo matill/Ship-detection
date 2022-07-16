@@ -43,11 +43,6 @@ NUM_WORKERS = 0
 MAX_EPOCHS = 100
 PRERFETCH_FACTOR = 2
 
-# Periodic stuff during training
-NUM_DISPLAYED_TESTS = 0
-EPOCHS_PER_DISPLAY = 10
-EPOCHS_PER_CHECKPOINT = None
-
 # Architecture hyperparameter constants (shared across all models)
 YX_MATCH_THRESH = 2.0
 YX_MULTIPLIER = 2.3
@@ -112,14 +107,14 @@ def get_model_cfg(model_type_name: str) -> DetectorCfg:
 
 def get_model_configs() -> List[Dict[str, str]]:
     return [
+        {"dataset_name": "HRSID", "model_type_name": "Point"},
         {"dataset_name": "HRSID", "model_type_name": "Box(DIoU)"},
 
-        {"dataset_name": "LS-SSDD", "model_type_name": "Box(IoU)"},
         {"dataset_name": "LS-SSDD", "model_type_name": "Box(DIoU)"},
         {"dataset_name": "LS-SSDD", "model_type_name": "Point"},
 
+        {"dataset_name": "LS-SSDD", "model_type_name": "Box(IoU)"},
         {"dataset_name": "HRSID", "model_type_name": "Box(IoU)"},
-        {"dataset_name": "HRSID", "model_type_name": "Point"},
 
         # # Comparison of MultiLayerAttention, NoAttention, and 3DMF
         # {"dataset_name": "LS-SSDD", "assignment_loss_name": "L2", "box_loss_name": "L1+SIoU", "attention_name": "LongMultiLayerAttention"},
@@ -147,6 +142,9 @@ def get_training_loop(dataset_name: str, model_type_name: str) -> TrainingLoop:
     name = get_model_name(dataset_name, model_type_name)
     print(name)
 
+    # Get dataset
+    train_dl, test_dl = get_dataloaders(dataset_name)
+
     N = 10
     P = 0.95
     lr_scheduler_lambda = lambda i: ((i+1) / N) if i < N else P ** (i + 1 - N)
@@ -157,14 +155,16 @@ def get_training_loop(dataset_name: str, model_type_name: str) -> TrainingLoop:
         get_data_augmentations(),
         get_default_performance_metrics(),
         lr_scheduler_lambda,
-        MAX_EPOCHS
+        MAX_EPOCHS,
+        train_dl,
+        test_dl,
     )
 
-def get_dataloaders(dataset_name: str) -> Tuple[DataLoader, DataLoader, DataLoader]:
+def get_dataloaders(dataset_name: str) -> Tuple[DataLoader, DataLoader]:
     if dataset_name == "LS-SSDD":
-        train_ds, test_ds, displayed_test_ds = LSSDDataset.get_split(NUM_DISPLAYED_TESTS)
+        train_ds, test_ds = LSSDDataset.get_split()
     elif dataset_name == "HRSID":
-        train_ds, test_ds, displayed_test_ds = HRSIDDataset.get_split(NUM_DISPLAYED_TESTS)
+        train_ds, test_ds = HRSIDDataset.get_split()
 
     train_dl = DataLoader(
         train_ds,
@@ -186,15 +186,7 @@ def get_dataloaders(dataset_name: str) -> Tuple[DataLoader, DataLoader, DataLoad
         persistent_workers=False,
     )
 
-    displayed_test_dl = DataLoader(
-        displayed_test_ds,
-        batch_size=TEST_BATCH_SIZE,
-        shuffle=False,
-        num_workers=0,
-        collate_fn=identity_collate,
-    )
-
-    return train_dl, test_dl, displayed_test_dl
+    return train_dl, test_dl
 
 def train():
     model_storage = ModelStorage(MODEL_STORAGE_DIR)
@@ -203,22 +195,11 @@ def train():
         dataset_name = config_dict["dataset_name"]
         model_type_name = config_dict["model_type_name"]
 
-        # Create dataset
-        train_dl, test_dl, displayed_test_dl = get_dataloaders(dataset_name)
-
         # Create model and training loop
         training_loop = get_training_loop(dataset_name, model_type_name)
 
         # Train model
-        training_loop.run(
-            EPOCHS_PER_DISPLAY,
-            EPOCHS_PER_CHECKPOINT,
-            model_storage,
-            train_dl,
-            test_dl,
-            displayed_test_dl,
-            LOG_FILE_DIR
-        )
+        training_loop.run(model_storage, LOG_FILE_DIR)
 
 def plot_training_log():
     model_cfgs = [

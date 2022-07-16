@@ -41,12 +41,10 @@ class HRSIDDataset(Dataset):
         return [json.dumps(val) for val in images_dict.values()]
 
     @staticmethod
-    def get_split(num_displayed_tests: int) -> Tuple[HRSIDDataset, HRSIDDataset, HRSIDDataset]:
+    def get_split() -> Tuple[HRSIDDataset, HRSIDDataset]:
         train_ds = HRSIDDataset(HRSIDDataset.get_tile_strings("train2017.json"))
-        test_tile_strings = HRSIDDataset.get_tile_strings("test2017.json")
-        test_ds = HRSIDDataset(test_tile_strings[num_displayed_tests:])
-        displayed_test_ds = HRSIDDataset(test_tile_strings[:num_displayed_tests])
-        return (train_ds, test_ds, displayed_test_ds)
+        test_ds = HRSIDDataset(HRSIDDataset.get_tile_strings("test2017.json"))
+        return (train_ds, test_ds)
 
     def __getitem__(self, idx: int) -> YOLOTile:
         as_dict = json.loads(self.string_dataset[idx])
