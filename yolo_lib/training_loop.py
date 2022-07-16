@@ -2,14 +2,13 @@ from __future__ import annotations
 import json
 import torch
 import os
-from typing import Any, Callable, Dict, List, Optional, Tuple
+from typing import Any, Callable, Dict, List, Optional
 from torch import optim
 from torch.utils.data.dataloader import DataLoader
 from yolo_lib.data.yolo_tile import YOLOTile
 from yolo_lib.data_augmentation.data_augmentation import DataAugmentation
 from yolo_lib.detectors.managed_architectures.base_detector import BaseDetector
 from yolo_lib.cfg import USE_GPU
-from yolo_lib.display_detections import display_detections, display_yolo_tile
 from yolo_lib.model_storage import ModelStorage
 from yolo_lib.performance_metrics.base_performance_metric import BasePerformanceMetric
 from yolo_lib.timer import Timer
@@ -27,6 +26,8 @@ class TrainingLoop(torch.nn.Module):
         performance_metrics: BasePerformanceMetric,
         lr_scheduler_lambda: Callable[[int], float],
         max_epochs: int,
+        train_dl: DataLoader,
+        test_dl: DataLoader,
     ) -> None:
         super().__init__()
         self.name = name
@@ -37,6 +38,8 @@ class TrainingLoop(torch.nn.Module):
         self.lr_scheduler_lambda = lr_scheduler_lambda
         self.lr_scheduler = optim.lr_scheduler.LambdaLR(self.optimizer, self.lr_scheduler_lambda)
         self.max_epochs = max_epochs
+        self.train_dl = train_dl
+        self.test_dl = test_dl
 
         # Loop state that should be stored at checkpoints
         self.epoch = 0
@@ -65,17 +68,9 @@ class TrainingLoop(torch.nn.Module):
         self.lr_scheduler.load_state_dict(state_dict["lr_scheduler"])
 
         # Loop state
-        # "tasks" defaults to empty list for backward compatibility
-        self.epoch = int(state_dict["epoch"])
-        self._load_helper(state_dict, "tasks", [])
-        self._load_helper(state_dict, "epoch_log_object", {})
-
-    def _load_helper(self, state_dict: Dict[str, Any], key: str, default: Any) -> None:
-        if key in state_dict:
-            val = state_dict[key]
-        else:
-            val = default
-        setattr(self, key, val)
+        self.epoch = state_dict["epoch"]
+        self.tasks = state_dict["tasks"]
+        self.epoch_log_object = state_dict["epoch_log_object"]
 
     def get_next_task(self) -> Optional[str]:
         if len(self.tasks) == 0:
@@ -111,13 +106,13 @@ class TrainingLoop(torch.nn.Module):
 
     def run(
         self,
-        epochs_per_display: int,
-        epochs_per_checkpoint: Optional[int],
+        # epochs_per_display: int,
+        # epochs_per_checkpoint: Optional[int],
         model_storage: ModelStorage,
 
-        train_dl: DataLoader,
-        test_dl: DataLoader,
-        displayed_test_dl: DataLoader,
+        # train_dl: DataLoader,
+        # test_dl: DataLoader,
+        # displayed_test_dl: DataLoader,
 
         output_directory_base_path: str,
     ):
@@ -145,12 +140,11 @@ class TrainingLoop(torch.nn.Module):
             elif task == "RESET_CRT_LOG_OBJECT":
                 self.reset_crt_log_object()
             elif task == "TRAIN_EPOCH":
-                self.train_epoch(train_dl)
+                self.train_epoch()
             elif task == "CHECKPOINT":
-                self.checkpoint(model_storage, epochs_per_checkpoint)
+                self.checkpoint(model_storage)
             elif task == "EVALUATE":
-                do_display = (self.epoch % epochs_per_display == 0)
-                self.evaluate(test_dl, displayed_test_dl, display_detection_folder, do_display)
+                self.evaluate()
             elif task == "INCREMENT_LR_SCHEDULER":
                 self.increment_lr_scheduler()
             elif task == "LOG_STORE":
@@ -160,16 +154,10 @@ class TrainingLoop(torch.nn.Module):
             else:
                 raise ValueError(f"Unexpected task {task}")
 
-        self.checkpoint(model_storage, epochs_per_checkpoint)
+        self.checkpoint(model_storage)
 
-    def checkpoint(self, model_storage: ModelStorage, epochs_per_checkpoint: Optional[int]):
-        # Store "latest" checkpoint
+    def checkpoint(self, model_storage: ModelStorage):
         model_storage.store_model(self, self.name)
-
-        # Intermediate checkpoint
-        if epochs_per_checkpoint and self.epoch % epochs_per_checkpoint == 0:
-            tag = f"epoch({int(self.epoch)})"
-            model_storage.store_model(self, self.name, tag)
 
     def increment_epoch(self):
         self.epoch += 1
@@ -191,7 +179,7 @@ class TrainingLoop(torch.nn.Module):
             "epoch": self.epoch
         }
 
-    def train_epoch(self, train_dl: DataLoader) -> None:
+    def train_epoch(self) -> None:
         # Start timers
         start_timer = Timer()
         end_timer = Timer()
@@ -201,7 +189,7 @@ class TrainingLoop(torch.nn.Module):
         epoch_loss_sum = 0.0
         epoch_loss_subterm_sums = {}
         desc = f"Epoch ({self.epoch}) training"
-        tqdm_dataloader = tqdm(train_dl, desc=desc, smoothing=0.01)
+        tqdm_dataloader = tqdm(self.train_dl, desc=desc, smoothing=0.01)
         num_augmentation_sum = 0
         for yolo_tiles in tqdm_dataloader:
             yolo_tiles: YOLOTileStack = yolo_tiles.to_device(USE_GPU)
@@ -232,8 +220,6 @@ class TrainingLoop(torch.nn.Module):
                     epoch_loss_subterm_sums[subterm_key] = float_val
 
             # Update tqdm postfix (loss terms)
-            # tqdm_postfix = {key: val for (key, val) in epoch_loss_subterm_sums.items()}
-            # tqdm_postfix["loss"] = epoch_loss_sum
             tqdm_postfix = {"loss": epoch_loss_sum, "augments": num_augmentation_sum}
             tqdm_dataloader.set_postfix(tqdm_postfix)
 
@@ -245,85 +231,40 @@ class TrainingLoop(torch.nn.Module):
         self.epoch_log_object["train_elapsed_seconds"] = Timer.elapsed_seconds(start_timer, end_timer)
 
     @torch.inference_mode()
-    def evaluate(
-        self,
-        test_dl: DataLoader,
-        displayed_test_dl: DataLoader,
-        display_detection_folder: str,
-        do_display: bool,
-    ) -> None:
+    def evaluate(self,) -> None:
         # Start timers
         start_timer = Timer()
         end_timer = Timer()
         start_timer.record()
 
-        # Evaluation mode
+        # Enter evaluation mode. Reset performance metric counter
         self.model.train(False)
-
-        # Reset performance metric counters and measurements
         self.performance_metrics.reset()
 
-        # Used for computing average inference time
-        inference_times_seconds = []
-
-        # Compute performance for displayed test set
-        desc = f"Epoch ({self.epoch}) evaluation (displayed)"
-        img_idx = 0
-        for img_idx, tiles in enumerate(tqdm(displayed_test_dl, desc=desc, smoothing=0.01)):
+        # Compute performance for test set
+        desc = f"Epoch ({self.epoch}) evaluation"
+        for tiles in tqdm(self.test_dl, desc=desc, smoothing=0.01):
+            # Check that the tile list has the right type
             tiles: List[YOLOTile] = tiles
             assert isinstance(tiles, list) and all((isinstance(tile, YOLOTile) for tile in tiles))
-            detection_blocks = self.increment_performance_metrics_with_batch(tiles, inference_times_seconds)
-            if do_display:
-                for (tile, detections) in zip(tiles, detection_blocks):
-                    fname = f"{display_detection_folder}/epoch_{self.epoch}_img_{img_idx}"
-                    display_yolo_tile(tile, fname, detections)
-                    img_idx += 1
 
-        # Compute performance for non-displayed test set
-        desc = f"Epoch ({self.epoch}) evaluation (non-displayed)"
-        for tiles in tqdm(test_dl, desc=desc, smoothing=0.01):
-            tiles: List[YOLOTile] = tiles
-            assert isinstance(tiles, list) and all((isinstance(tile, YOLOTile) for tile in tiles))
-            self.increment_performance_metrics_with_batch(tiles, inference_times_seconds)
+            # Create batch of images, and get a DetectionBlock for each image
+            images = torch.cat([tile.image for tile in tiles])
+            device_images = images.cuda() if USE_GPU else images
+            detection_grid = self.model.detect_objects(device_images)
+            detection_blocks = [
+                detection_grid_i.as_detection_block()
+                for detection_grid_i in detection_grid.split_by_image()
+            ]
+
+            # Increment performance metrics for all images
+            annotation_blocks = [tile.annotations.to_device(USE_GPU) for tile in tiles]
+            for (annotations, detections) in zip(annotation_blocks, detection_blocks):
+                self.performance_metrics.increment(detections, annotations)
 
         # Finalize performance metrics
         end_timer.record()
         Timer.sync()
-        final_performance_metrics = self.performance_metrics.finalize()
-        avg_inference_time_seconds = float(torch.mean(torch.tensor(inference_times_seconds)))
-        self.epoch_log_object["performance_metrics"] = final_performance_metrics
-        self.epoch_log_object["avg_inference_time_seconds"] = avg_inference_time_seconds
+        self.epoch_log_object["performance_metrics"] = self.performance_metrics.finalize()
         self.epoch_log_object["test_elapsed_seconds"] = Timer.elapsed_seconds(start_timer, end_timer)
-
-    def increment_performance_metrics_with_batch(
-        self,
-        tiles: List[YOLOTile],
-        inference_times_seconds: List[float],
-    ) -> List[DetectionBlock]:
-
-        # Timed inference for a batch of images
-        start_timer = Timer()
-        end_timer = Timer()
-        start_timer.record()
-        images = torch.cat([tile.image for tile in tiles])
-        device_images = images.cuda() if USE_GPU else images
-        detection_grid = self.model.detect_objects(device_images)
-        end_timer.record()
-
-        # DetectionGrid to List[DetectionBlock]
-        detection_blocks = [
-            detection_grid_i.as_detection_block()
-            for detection_grid_i in detection_grid.split_by_image()
-        ]
-
-        # Increment performance metrics for all images
-        annotation_blocks = [tile.annotations.to_device(USE_GPU) for tile in tiles]
-        for (annotations, detections) in zip(annotation_blocks, detection_blocks):
-            self.performance_metrics.increment(detections, annotations)
-
-        # Sync inference timer, and append to timer
-        Timer.sync()
-        time_elapsed = Timer.elapsed_seconds(start_timer, end_timer)
-        inference_times_seconds.append(time_elapsed)
-        return [d.filter_min_positivity(0.5).get_top_n(100) for d in detection_blocks]
 
