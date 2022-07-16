@@ -216,7 +216,7 @@ def read_ap(epoch_log_obj) -> float:
 def read_best(variation: str, max_yx_error_px: int, metric: str) -> float:
     """Returns the best Distance-AP score for a given configuration"""
     name = f"{variation}+MaxError({max_yx_error_px})"
-    path = os.path.join(OUTPUT_DIR, name, "training_log.json")
+    path = os.path.join(LOG_FILE_DIR, name, "training_log.json")
     with open(path, "r") as F:
         as_json = json.load(F)
 
@@ -284,7 +284,7 @@ def plot_paper():
         best_epoch_objs = []
         for max_yx_error_px in INACCURACIES:
             name = f"{variation}+MaxError({max_yx_error_px})"
-            path = os.path.join(OUTPUT_DIR, name, "training_log.json")
+            path = os.path.join(LOG_FILE_DIR, name, "training_log.json")
             with open(path, "r") as F:
                 as_json = json.load(F)
 
