@@ -14,7 +14,7 @@ from yolo_lib.detectors.yolo_heads.label_assignment.similarity_metrics.similarit
 from yolo_lib.detectors.yolo_heads.losses.adv_loss import ADVLoss
 from yolo_lib.detectors.yolo_heads.losses.complete_box_losses import BoxLoss
 from yolo_lib.detectors.yolo_heads.losses.objectness_loss import ConfidenceUnawareObjectnessLoss
-from yolo_lib.detectors.yolo_heads.annotation_encoding import PointAnnotationEncoding, SinCosAnnotationEncoding, SizeAnnotationEncoding
+from yolo_lib.detectors.yolo_heads.annotation_encoding import PointAnnotationEncoding, SizeAnnotationEncoding
 from yolo_lib.models.blocks.conv5d import Conv5D
 from yolo_lib.util import check_tensor
 from scipy.optimize import linear_sum_assignment
@@ -334,9 +334,8 @@ class YOLOHead(nn.Module):
         center_yx = center_yx_downsampled - grid_yx_idxs.float()
         yx_annotation_encoding = PointAnnotationEncoding(annotations.size, center_yx, None, None, None)
 
-        # Get SizeAnnotationEncoding and SinCosAnnotationEncoding, using default constructors
+        # Get SizeAnnotationEncoding, using default constructors
         hw_annotation_encoding = SizeAnnotationEncoding.encode(annotations, downsample_factor)
-        sincos_annotation_encoding = SinCosAnnotationEncoding.encode(annotations)
 
         # Compute objectness loss
         objectness_loss = self.objectness_loss_fn(
@@ -360,7 +359,7 @@ class YOLOHead(nn.Module):
         # Get direction loss
         sincos_loss = self.adv_loss_fn(
             post_activation[:, :, YOLO_SINCOS, :, :],
-            sincos_annotation_encoding,
+            annotations,
             assignment,
         )
 

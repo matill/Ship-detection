@@ -61,25 +61,6 @@ class SizeAnnotationEncoding:
         return SizeAnnotationEncoding(size_hw, has_size_hw)
 
 
-@dataclass
-class SinCosAnnotationEncoding:
-    sincos: torch.Tensor
-    has_rotation: torch.Tensor
-    is_rotation_360: torch.Tensor
-
-    @staticmethod
-    @torch.no_grad()
-    def encode(annotations: AnnotationBlock) -> SinCosAnnotationEncoding:
-        assert isinstance(annotations, AnnotationBlock)
-
-        # Sin and cos of rotation
-        rotation_radians = annotations.rotation * DEVICE_TWO_PI
-        sincos = torch.empty((annotations.size, 2), dtype=torch.float64, device=DEVICE)
-        torch.sin(rotation_radians, out=sincos[:, 0])
-        torch.cos(rotation_radians, out=sincos[:, 1])
-        return SinCosAnnotationEncoding(sincos, annotations.has_rotation, annotations.is_rotation_360)
-
-
 class TestPointAnnotationEncoding(unittest.TestCase):
     def assert_tensors_equal(self, a, b, approx=None):
         self.assertEqual(a.shape, b.shape)
