@@ -15,4 +15,5 @@ HRSID_jpg/
 demonstrate_weakly_supervised_property/
 run_real_experiments_synthetic/
 tmp/
-datasets/
+datasets/*
+!datasets/README.md
