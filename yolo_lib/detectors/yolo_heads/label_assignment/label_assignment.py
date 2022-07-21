@@ -4,7 +4,7 @@ import torch
 from torch import Tensor
 from typing import List, Tuple
 from yolo_lib.cfg import DEVICE
-from yolo_lib.util import check_tensor
+from yolo_lib.util.check_tensor import check_tensor
 
 
 @dataclass

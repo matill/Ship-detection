@@ -7,7 +7,7 @@ import torch.nn.functional as F
 from yolo_lib.cfg import DEVICE
 from yolo_lib.data.dataclasses import AnnotationBlock, YOLOTileStack
 from yolo_lib.detectors.managed_architectures.base_detector import BaseDetector
-from yolo_lib.util import check_tensor
+from yolo_lib.util.check_tensor import check_tensor
 from yolo_lib.cfg import DEVICE
 from .data_augmentation import DataAugmentation
 import numpy as np

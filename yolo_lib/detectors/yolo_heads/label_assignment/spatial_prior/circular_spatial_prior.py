@@ -4,7 +4,7 @@ import torch
 from yolo_lib.data.annotation import AnnotationBlock
 from yolo_lib.detectors.yolo_heads.label_assignment.spatial_prior.spatial_prior_base import SpatialPrior
 from yolo_lib.cfg import DEVICE
-from yolo_lib.util import check_tensor
+from yolo_lib.util.check_tensor import check_tensor
 
 
 class CircularSpatialPrior(SpatialPrior):

@@ -9,9 +9,9 @@ from yolo_lib.data.yolo_tile import YOLOTile
 from yolo_lib.data_augmentation.data_augmentation import DataAugmentation
 from yolo_lib.detectors.managed_architectures.base_detector import BaseDetector
 from yolo_lib.cfg import USE_GPU
-from yolo_lib.model_storage import ModelStorage
+from yolo_lib.util.model_storage import ModelStorage
 from yolo_lib.performance_metrics.base_performance_metric import BasePerformanceMetric
-from yolo_lib.timer import Timer
+from yolo_lib.util.timer import Timer
 from yolo_lib.data.dataclasses import DetectionBlock, YOLOTileStack
 from tqdm import tqdm
 

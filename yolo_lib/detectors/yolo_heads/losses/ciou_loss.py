@@ -1,9 +1,9 @@
 import torch
 from yolo_lib.detectors.yolo_heads.label_assignment.label_assignment import LabelAssignment
 from yolo_lib.detectors.yolo_heads.annotation_encoding import PointAnnotationEncoding, SizeAnnotationEncoding
-from yolo_lib.util import check_tensor
+from yolo_lib.util.check_tensor import check_tensor
 from .complete_box_losses import BoxLoss
-from yolo_lib.iou import get_ciou_grid_loss, get_diou_grid_loss
+from yolo_lib.util.iou import get_ciou_grid_loss, get_diou_grid_loss
 
 
 class CIoUBoxLoss(BoxLoss):

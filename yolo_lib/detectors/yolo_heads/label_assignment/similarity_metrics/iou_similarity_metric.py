@@ -3,7 +3,7 @@ from torch import Tensor
 from yolo_lib.data.annotation import AnnotationBlock
 from yolo_lib.detectors.yolo_heads.label_assignment.similarity_metrics.similarity_metric_base import SimilarityMetric
 from yolo_lib.detectors.yolo_heads.output_vector_format import YOLO_O, YOLO_YX, YOLO_HW
-from yolo_lib.util import check_tensor
+from yolo_lib.util.check_tensor import check_tensor
 
 
 class IoUPotoMatchloss(SimilarityMetric):

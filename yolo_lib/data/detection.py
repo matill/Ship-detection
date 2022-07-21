@@ -3,7 +3,7 @@ import torch
 import numpy as np
 from typing import Any, List, Optional, Tuple
 from dataclasses import dataclass
-from yolo_lib.util import check_tensor
+from yolo_lib.util.check_tensor import check_tensor
 
 
 @dataclass

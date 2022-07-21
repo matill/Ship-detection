@@ -1,6 +1,5 @@
 from typing import Tuple
 import torch
-
 from yolo_lib.cfg import SAFE_MODE
 
 

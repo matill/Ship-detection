@@ -7,7 +7,7 @@ from yolo_lib.data.yolo_tile import YOLOTileStack
 from yolo_lib.detectors.managed_architectures.base_detector import BaseDetector
 from yolo_lib.data.detection import DetectionGrid
 from yolo_lib.models.backbones import BackboneCfg
-from yolo_lib.util import check_tensor
+from yolo_lib.util.check_tensor import check_tensor
 
 
 @dataclass

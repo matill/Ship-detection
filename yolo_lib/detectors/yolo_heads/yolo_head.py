@@ -16,7 +16,7 @@ from yolo_lib.detectors.yolo_heads.losses.complete_box_losses import BoxLoss
 from yolo_lib.detectors.yolo_heads.losses.objectness_loss import ConfidenceUnawareObjectnessLoss
 from yolo_lib.detectors.yolo_heads.annotation_encoding import PointAnnotationEncoding, SizeAnnotationEncoding
 from yolo_lib.models.blocks.conv5d import Conv5D
-from yolo_lib.util import check_tensor
+from yolo_lib.util.check_tensor import check_tensor
 from scipy.optimize import linear_sum_assignment
 from yolo_lib.detectors.yolo_heads.output_vector_format import YOLO_O, YOLO_YX, YOLO_HW, YOLO_SINCOS
 

@@ -2,7 +2,7 @@ import torch
 from torch import nn, Tensor
 from yolo_lib.data.annotation import AnnotationBlock
 from yolo_lib.detectors.yolo_heads.label_assignment.label_assignment import LabelAssignment
-from yolo_lib.util import check_tensor
+from yolo_lib.util.check_tensor import check_tensor
 
 
 class ADVLoss(nn.Module):

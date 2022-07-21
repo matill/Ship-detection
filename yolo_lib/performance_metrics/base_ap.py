@@ -4,11 +4,11 @@ import numpy as np
 import torch
 from typing import Any, Dict, List, Optional, Tuple
 from yolo_lib.data.dataclasses import DetectionBlock, AnnotationBlock, Annotation
-from yolo_lib.iou import get_iou
+from yolo_lib.util.iou import get_iou
 from yolo_lib.performance_metrics import regression_metrics
 from yolo_lib.performance_metrics.base_performance_metric import BasePerformanceMetric
 from yolo_lib.performance_metrics.regression_metrics import RegressionMetric
-from yolo_lib.util import check_tensor
+from yolo_lib.util.check_tensor import check_tensor
 from .matching import Matching, get_num_clusters
 
 

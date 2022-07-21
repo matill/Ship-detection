@@ -1,8 +1,8 @@
 import torch
 from typing import Any, Dict, List
-from yolo_lib.iou import get_centered_iou
+from yolo_lib.util.iou import get_centered_iou
 from yolo_lib.data.dataclasses import DetectionBlock, AnnotationBlock
-from yolo_lib.util import check_tensor
+from yolo_lib.util.check_tensor import check_tensor
 from .matching import Matching
 
 

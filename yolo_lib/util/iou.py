@@ -4,7 +4,7 @@ import torch
 from torch import Tensor
 from yolo_lib.cfg import DEVICE, SAFE_MODE
 from yolo_lib.torch_consts import DEVICE_4_OVER_PI_SQUARED, DEVICE_0
-from yolo_lib.util import check_tensor
+from yolo_lib.util.check_tensor import check_tensor
 
 """
 Implements the core mathematics involving IoU and related metrics
