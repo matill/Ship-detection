@@ -1,4 +1,4 @@
-from .cfg import USE_GPU
+from yolo_lib.cfg import USE_GPU
 import torch
 import time
 
