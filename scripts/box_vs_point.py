@@ -26,10 +26,11 @@ from yolo_lib.detectors.yolo_heads.losses.center_yx_losses import CenterYXSmooth
 from yolo_lib.detectors.yolo_heads.losses.siou_box_loss import SIoUBoxLoss
 from yolo_lib.detectors.yolo_heads.losses.ciou_loss import DIoUBoxLoss
 from yolo_lib.detectors.yolo_heads.losses.adv_loss import ADVLoss
-from yolo_lib.model_storage import ModelStorage
+from yolo_lib.util.model_storage import ModelStorage
 from dataset_classes.ls_ssdd_dataset import LSSDDataset
 from yolo_lib.performance_metrics import get_default_performance_metrics
 from yolo_lib.training_loop import TrainingLoop
+from yolo_lib.optimization_criteria import OptimizationCriteria
 
 
 OUTPUT_BASE_DIR = "./out/box_vs_point"
@@ -158,7 +159,26 @@ def get_training_loop(dataset_name: str, model_type_name: str) -> TrainingLoop:
         MAX_EPOCHS,
         train_dl,
         test_dl,
+        get_optimization_criterias(),
     )
+
+def get_optimization_criterias() -> List[OptimizationCriteria]:
+    return [
+        OptimizationCriteria(
+            "dAP",
+            ["performance_metrics", "Distance-AP", "AP"],
+        ),
+        OptimizationCriteria(
+            "F2",
+            ["performance_metrics", "Distance-AP", "F2", "F2"],
+        ),
+        OptimizationCriteria(
+            "loss",
+            ["epoch_loss_sum"],
+            minimize=True,
+        ),
+    ]
+
 
 def get_dataloaders(dataset_name: str) -> Tuple[DataLoader, DataLoader]:
     if dataset_name == "LS-SSDD":

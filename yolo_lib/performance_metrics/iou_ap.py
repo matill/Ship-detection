@@ -1,7 +1,7 @@
 
 from typing import List
 import torch
-from yolo_lib.iou import get_iou
+from yolo_lib.util.iou import get_iou
 from yolo_lib.performance_metrics.base_ap import BaseAveragePrecision
 from yolo_lib.data.dataclasses import DetectionBlock, AnnotationBlock
 from yolo_lib.performance_metrics.base_performance_metric import BasePerformanceMetric

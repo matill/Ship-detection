@@ -14,6 +14,7 @@ from yolo_lib.performance_metrics.base_performance_metric import BasePerformance
 from yolo_lib.util.timer import Timer
 from yolo_lib.data.dataclasses import DetectionBlock, YOLOTileStack
 from tqdm import tqdm
+from yolo_lib.optimization_criteria import OptimizationCriteria
 
 
 class TrainingLoop(torch.nn.Module):
@@ -28,6 +29,7 @@ class TrainingLoop(torch.nn.Module):
         max_epochs: int,
         train_dl: DataLoader,
         test_dl: DataLoader,
+        optimization_criterias: List[OptimizationCriteria],
     ) -> None:
         super().__init__()
         self.name = name
@@ -40,6 +42,7 @@ class TrainingLoop(torch.nn.Module):
         self.max_epochs = max_epochs
         self.train_dl = train_dl
         self.test_dl = test_dl
+        self.optimization_criterias = optimization_criterias
 
         # Loop state that should be stored at checkpoints
         self.epoch = 0
@@ -81,6 +84,7 @@ class TrainingLoop(torch.nn.Module):
                 "CHECKPOINT",
                 "EVALUATE",
                 "CHECKPOINT",
+                "CHECKPOINT_BEST_METRICS",
                 "INCREMENT_LR_SCHEDULER",
                 "LOG_STORE",
                 "INCREMENT_EPOCH",
@@ -151,6 +155,8 @@ class TrainingLoop(torch.nn.Module):
                 self.log_store(training_log, training_log_fname)
             elif task == "INCREMENT_EPOCH":
                 self.increment_epoch()
+            elif task == "CHECKPOINT_BEST_METRICS":
+                self.checkpoint_best_metrics(model_storage, training_log)
             else:
                 raise ValueError(f"Unexpected task {task}")
 
@@ -158,6 +164,14 @@ class TrainingLoop(torch.nn.Module):
 
     def checkpoint(self, model_storage: ModelStorage):
         model_storage.store_model(self, self.name)
+
+    def checkpoint_best_metrics(self, model_storage: ModelStorage, training_log: List[Any]):
+        for optimization_criteria in self.optimization_criterias:
+            is_crt_best = optimization_criteria.is_crt_best(training_log, self.epoch_log_object)
+            short_name = optimization_criteria.short_name
+            print(f"Optimization criteria {short_name} {'broke' if is_crt_best else 'did not break'} record this epoch ({self.epoch})")
+            if is_crt_best:
+                model_storage.store_model(self, self.name, tag=optimization_criteria.short_name)
 
     def increment_epoch(self):
         self.epoch += 1

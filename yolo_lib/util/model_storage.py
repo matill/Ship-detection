@@ -13,11 +13,15 @@ class ModelStorage:
         os.makedirs(self.storage_folder, exist_ok=True)
 
     def store_model(self, model: Module, name: str, tag: str = "latest"):
-        torch.save(model.state_dict(), self._get_path(name, tag))
+        path = self._get_path(name, tag)
+        print(f"Storing {path}")
+        torch.save(model.state_dict(), path)
 
     def load_model(self, model: Module, name: str, tag: str = "latest", not_exists_ok=False):
         try:
-            model.load_state_dict(torch.load(self._get_path(name, tag)))
+            path = self._get_path(name, tag)
+            print(f"Loading {path}")
+            model.load_state_dict(torch.load(path))
         except FileNotFoundError as e:
             print(f"WARNING: Tried to load {name}:{tag}, but got FileNotFoundError.\n{e}")
             if not not_exists_ok:
@@ -28,7 +32,6 @@ class ModelStorage:
 
     def _get_path(self, model_name: str, tag: str) -> str:
         path = os.path.join(self.storage_folder, f"{model_name}:{tag}.pt")
-        print(path)
         return path
 
     def list_models(self):

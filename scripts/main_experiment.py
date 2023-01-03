@@ -25,7 +25,7 @@ from yolo_lib.detectors.yolo_heads.losses.center_yx_losses import CenterYXSmooth
 from yolo_lib.detectors.yolo_heads.losses.siou_box_loss import SIoUBoxLoss
 from yolo_lib.detectors.yolo_heads.losses.ciou_loss import DIoUBoxLoss
 from yolo_lib.detectors.yolo_heads.losses.adv_loss import ADVLoss
-from yolo_lib.model_storage import ModelStorage
+from yolo_lib.util.model_storage import ModelStorage
 from dataset_classes.ls_ssdd_dataset import LSSDDataset
 from yolo_lib.performance_metrics import get_default_performance_metrics
 from yolo_lib.training_loop import TrainingLoop

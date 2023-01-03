@@ -18,10 +18,10 @@ from yolo_lib.detectors.managed_architectures.base_detector import BaseDetector
 from yolo_lib.detectors.yolo_heads.losses.center_yx_losses import CenterYXSmoothL1
 from yolo_lib.detectors.yolo_heads.losses.siou_box_loss import SIoUBoxLoss
 from yolo_lib.detectors.yolo_heads.losses.adv_loss import ADVLoss
-from yolo_lib.display_detections import display_yolo_tile
+from yolo_lib.util.display_detections import display_yolo_tile
 from yolo_lib.performance_metrics import get_default_performance_metrics
 from yolo_lib.training_loop import TrainingLoop
-from yolo_lib.model_storage import ModelStorage
+from yolo_lib.util.model_storage import ModelStorage
 
 
 OUTPUT_BASE_DIR = "./out/the_effect_of_noisy_labels"
