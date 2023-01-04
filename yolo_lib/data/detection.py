@@ -13,6 +13,7 @@ class DetectionBlock:
     objectness: torch.Tensor
     size_hw: None | torch.Tensor
     rotation: None | torch.Tensor
+    class_probabilities: None | torch.Tensor
 
     def __post_init__(self):
         assert isinstance(self.size, int)
@@ -20,6 +21,7 @@ class DetectionBlock:
         assert self.objectness.shape == (self.size, )
         assert self.size_hw is None or self.size_hw.shape == (self.size, 2)
         assert self.rotation is None or self.rotation.shape == (self.size, )
+        assert self.class_probabilities is None or self.class_probabilities.shape == (self.size, )
 
     @torch.no_grad()
     def as_detection_list(self) -> List[Detection]:
@@ -27,12 +29,17 @@ class DetectionBlock:
         objectness = self.objectness.cpu().detach().numpy()
         size_hw = None if self.size_hw is None else self.size_hw.cpu().detach().numpy()
         rotation = None if self.rotation is None else self.rotation.cpu().detach().numpy()
+        class_probabilities = None if self.class_probabilities is None else self.class_probabilities.cpu().detach().numpy()
+        max_class = None if self.class_probabilities is None else self.class_probabilities.argmax(1)
+        assert max_class.shape == (self.size, )
         return [
             Detection(
                 center_yx=center_yx[i],
                 objectness=objectness[i],
                 size_hw=(None if size_hw is None else size_hw[i]),
                 rotation=(None if rotation is None else rotation[i]),
+                class_probabilities=(None if class_probabilities is None else class_probabilities[i]),
+                max_class=(None if max_class is None else max_class[i]),
             )
             for i in range(self.size)
         ]
@@ -42,8 +49,9 @@ class DetectionBlock:
         objectness = self.objectness[index]
         size_hw = None if self.size_hw is None else self.size_hw[index]
         rotation = None if self.rotation is None else self.rotation[index]
+        class_probabilities = None if self.class_probabilities is None else self.class_probabilities[index]
         size = center_yx.shape[0]
-        return DetectionBlock(size, center_yx, objectness, size_hw, rotation)
+        return DetectionBlock(size, center_yx, objectness, size_hw, rotation, class_probabilities)
 
     @torch.no_grad()
     def extract_bitmap(self, bitmap: torch.Tensor) -> DetectionBlock:
@@ -93,6 +101,7 @@ class DetectionGrid:
     objectness: torch.Tensor
     size_hw: None | torch.Tensor
     rotation: None | torch.Tensor
+    class_probabilities: None | torch.Tensor
 
     @staticmethod
     def new(
@@ -101,13 +110,15 @@ class DetectionGrid:
         objectness: torch.Tensor,
         size_hw: None | torch.Tensor,
         rotation: None | torch.Tensor,
+        class_probabilities: None | torch.Tensor,
     ) -> DetectionGrid:
         return DetectionGrid(
             size,
             DetectionGrid._permute(center_yx),
             objectness,
             DetectionGrid._permute(size_hw) if size_hw is not None else None,
-            rotation
+            rotation,
+            DetectionGrid._permute(class_probabilities) if class_probabilities is not None else None,
         )
 
     @staticmethod
@@ -123,6 +134,9 @@ class DetectionGrid:
             check_tensor(self.size_hw, (batch_size, num_anchors, h, w, 2))
         if self.rotation is not None:
             check_tensor(self.rotation, (batch_size, num_anchors, h, w))
+        if self.class_probabilities is not None:
+            num_classes = self.class_probabilities.shape[4]
+            check_tensor(self.class_probabilities, (batch_size, num_anchors, h, w, num_classes))
 
     def _flatten(self, grid: Optional[torch.Tensor]) -> Optional[torch.Tensor]:
         if grid is None:
@@ -140,6 +154,7 @@ class DetectionGrid:
             objectness = self._flatten(self.objectness),
             size_hw = self._flatten(self.size_hw),
             rotation = self._flatten(self.rotation),
+            class_probabilities = self._flatten(self.class_probabilities),
         )
 
     def _index_into_tensor_by_image(self, tensor: Optional[torch.Tensor], img_idx: int) -> Optional[torch.Tensor]:
@@ -156,6 +171,7 @@ class DetectionGrid:
             objectness=self._index_into_tensor_by_image(self.objectness, img_idx),
             size_hw=self._index_into_tensor_by_image(self.size_hw, img_idx),
             rotation=self._index_into_tensor_by_image(self.rotation, img_idx),
+            class_probabilities=self._index_into_tensor_by_image(self.class_probabilities, img_idx),
         )
 
     def split_by_image(self) -> List[DetectionGrid]:
