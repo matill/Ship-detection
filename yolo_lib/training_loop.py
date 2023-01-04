@@ -244,7 +244,7 @@ class TrainingLoop(torch.nn.Module):
         self.epoch_log_object["epoch_loss_subterm_sums"] = epoch_loss_subterm_sums
         self.epoch_log_object["train_elapsed_seconds"] = Timer.elapsed_seconds(start_timer, end_timer)
 
-    @torch.inference_mode()
+    @torch.no_grad()
     def evaluate(self,) -> None:
         # Start timers
         start_timer = Timer()
