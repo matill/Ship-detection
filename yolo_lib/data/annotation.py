@@ -17,7 +17,8 @@ class AnnotationBlock:
     rotation: torch.Tensor
     has_rotation: torch.Tensor
     is_rotation_360: torch.Tensor
-    # max_class: int = None
+    max_class: torch.Tensor
+    has_max_class: torch.Tensor
 
     def __post_init__(self):
         assert isinstance(self.size, int) and self.size >= 0
@@ -28,6 +29,8 @@ class AnnotationBlock:
         assert self.rotation.shape == (self.size, )
         assert self.has_rotation.shape == (self.size, )
         assert self.is_rotation_360.shape == (self.size, )
+        assert self.max_class.shape == (self.size, )
+        assert self.has_max_class.shape == (self.size, )
 
     @staticmethod
     @torch.no_grad()
@@ -41,6 +44,8 @@ class AnnotationBlock:
             rotation=torch.cat([block.rotation for block in annotation_blocks]),
             has_rotation=torch.cat([block.has_rotation for block in annotation_blocks]),
             is_rotation_360=torch.cat([block.is_rotation_360 for block in annotation_blocks]),
+            max_class=torch.cat([block.max_class for block in annotation_blocks]),
+            has_max_class=torch.cat([block.has_max_class for block in annotation_blocks]),
         )
 
     @torch.no_grad()
@@ -55,6 +60,8 @@ class AnnotationBlock:
                 self.rotation.cuda(),
                 self.has_rotation.cuda(),
                 self.is_rotation_360.cuda(),
+                self.max_class.cuda(),
+                self.has_max_class.cuda(),
             )
         else:
             return self
@@ -68,6 +75,8 @@ class AnnotationBlock:
         rotation = self.rotation.cpu().detach().numpy()
         has_rotation = self.has_rotation.cpu().detach().numpy()
         is_rotation_360 = self.is_rotation_360.cpu().detach().numpy()
+        max_class = self.max_class.cpu().detach().numpy()
+        has_max_class = self.has_max_class.cpu().detach().numpy()
         return [
             Annotation(
                 center_yx=center_yx[i],
@@ -75,7 +84,8 @@ class AnnotationBlock:
                 size_hw=(size_hw[i] if has_size_hw[i] else None),
                 rotation=(rotation[i] if has_rotation[i] else None),
                 is_rotation_360=is_rotation_360[i],
-                max_class=None
+                max_class=None,
+                max_class=(max_class[i] if has_max_class[i] else None),
             )
             for i in range(self.size)
         ]
@@ -92,6 +102,8 @@ class AnnotationBlock:
             rotation=torch.zeros((0, ), dtype=torch.float64),
             has_rotation=torch.zeros((0, ), dtype=torch.bool),
             is_rotation_360=torch.zeros((0, ), dtype=torch.bool),
+            max_class=torch.zeros((0, 2), dtype=torch.float64),
+            has_max_class=torch.zeros((0, ), dtype=torch.bool),
         )
 
     @staticmethod
@@ -116,6 +128,11 @@ class AnnotationBlock:
                 ])),
                 has_rotation=torch.tensor([a.rotation is not None for a in annotation_list]),
                 is_rotation_360=torch.tensor([a.is_rotation_360 for a in annotation_list]),
+                max_class=torch.tensor(np.array([
+                    a.max_class if a.max_class is not None else np.array([0.0, 0.0])
+                    for a in annotation_list
+                ])),
+                has_max_class=torch.tensor([a.max_class is not None for a in annotation_list]),
             )
 
     def index(self, index: Any) -> AnnotationBlock:
@@ -130,6 +147,8 @@ class AnnotationBlock:
             self.rotation[index],
             self.has_rotation[index],
             self.is_rotation_360[index],
+            self.max_class[index],
+            self.has_max_class[index],
         )
 
     @torch.no_grad()
@@ -202,6 +221,8 @@ class Annotation:
             as_dict["hw"] = [float(x) for x in self.size_hw]
         if self.rotation is not None:
             as_dict["r"] = float(self.rotation)
+        if self.max_class is not None:
+            as_dict["c"] = float(self.max_class)
         return as_dict
 
     @staticmethod
@@ -212,5 +233,6 @@ class Annotation:
             rotation=(np.array(as_dict["r"], dtype=np.float32) if "r" in as_dict else None),
             is_high_confidence=True,
             is_rotation_360=True,
+            max_class=(np.array(as_dict["c"], dtype=np.float32) if "c" in as_dict else None),
         )
 
