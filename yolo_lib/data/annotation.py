@@ -192,6 +192,10 @@ class Annotation:
     is_rotation_360: bool = True
     max_class: int = None
 
+    def __post_init__(self):
+        if self.rotation is not None:
+            assert 0.0 <= self.rotation <= 1.0, f"Annotation.rotation out of range. Got ({self.rotation}). Out of [0, 1) range"
+
     def to_dict(self) -> Dict[str, Any]:
         as_dict = {"yx": [float(x) for x in self.center_yx]}
         if self.size_hw is not None:
