@@ -31,6 +31,7 @@ from dataset_classes.ls_ssdd_dataset import LSSDDataset
 from yolo_lib.performance_metrics import get_default_performance_metrics
 from yolo_lib.training_loop import TrainingLoop
 from yolo_lib.optimization_criteria import OptimizationCriteria
+from yolo_lib.util.display_detections import display_yolo_tile
 
 
 OUTPUT_BASE_DIR = "./out/box_vs_point"
@@ -64,6 +65,7 @@ def get_script():
         {
             "train": train,
             "plot_training_log": plot_training_log,
+            "display_val_set": display_val_set,
         }
     )
 
@@ -245,3 +247,37 @@ def plot_training_log():
     
     plt.legend()
     plt.show()
+
+def display_val_set():
+    model_cfgs = [
+        {"dataset_name": "HRSID", "model_type_name": "Point"},
+    ]
+
+    model_storage = ModelStorage(MODEL_STORAGE_DIR)
+
+    for config_dict in model_cfgs:
+        dataset_name = config_dict["dataset_name"]
+        model_type_name = config_dict["model_type_name"]
+
+        model_name = get_model_name(dataset_name, model_type_name)
+        model_cfg = get_model_cfg(model_type_name)
+        model = model_cfg.build().cuda()
+        model = TrainingLoop.load_trained_model(model_name, "dAP", model, model_storage)
+
+        # Get dataset
+        train_dl, test_dl = get_dataloaders(dataset_name)
+        for i, tiles in enumerate(test_dl):
+            tiles: List[YOLOTile] = tiles
+            tile = tiles[0]
+            detections = model.detect_objects(tile.image.cuda()).as_detection_block().filter_min_positivity(0.6)
+            display_yolo_tile(
+                tile,
+                f"./out/box_vs_point/val/file{i}.png",
+                detections,
+                # grid_spacing=None,
+                display_mode="WIDE_SQUARE",
+            )
+
+            if i == 10:
+                break
+

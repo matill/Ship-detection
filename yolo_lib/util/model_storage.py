@@ -30,6 +30,11 @@ class ModelStorage:
             print("Error when loading ", name)
             raise e
 
+    def get_state_dict(self, name: str, tag: str="latest"):
+        path = self._get_path(name, tag)
+        print(f"Loading {path}")
+        return torch.load(path)
+
     def _get_path(self, model_name: str, tag: str) -> str:
         path = os.path.join(self.storage_folder, f"{model_name}:{tag}.pt")
         return path

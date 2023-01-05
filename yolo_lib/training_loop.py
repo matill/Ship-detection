@@ -49,6 +49,12 @@ class TrainingLoop(torch.nn.Module):
         self.tasks = []
         self.epoch_log_object = {}
 
+    @staticmethod
+    def load_trained_model(name: str, checkpoint_tag: str, model: BaseDetector, model_storage: ModelStorage) -> BaseDetector:
+        state_dict = model_storage.get_state_dict(name, checkpoint_tag)
+        model.load_state_dict(state_dict["model"])
+        return model
+
     def state_dict(self) -> Dict[str, Any]:
         """Overload Module.state_dict() to actually work"""
         return {

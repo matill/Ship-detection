@@ -31,7 +31,8 @@ class DetectionBlock:
         rotation = None if self.rotation is None else self.rotation.cpu().detach().numpy()
         class_probabilities = None if self.class_probabilities is None else self.class_probabilities.cpu().detach().numpy()
         max_class = None if self.class_probabilities is None else self.class_probabilities.argmax(1)
-        assert max_class.shape == (self.size, )
+        if max_class is not None:
+            assert max_class.shape == (self.size, )
         return [
             Detection(
                 center_yx=center_yx[i],
