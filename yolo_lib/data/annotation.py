@@ -22,15 +22,15 @@ class AnnotationBlock:
 
     def __post_init__(self):
         assert isinstance(self.size, int) and self.size >= 0
-        assert self.center_yx.shape == (self.size, 2)
-        assert self.is_high_confidence.shape == (self.size, )
-        assert self.size_hw.shape == (self.size, 2)
-        assert self.has_size_hw.shape == (self.size, )
-        assert self.rotation.shape == (self.size, )
-        assert self.has_rotation.shape == (self.size, )
-        assert self.is_rotation_360.shape == (self.size, )
-        assert self.max_class.shape == (self.size, )
-        assert self.has_max_class.shape == (self.size, )
+        check_tensor(self.center_yx, (self.size, 2))
+        check_tensor(self.is_high_confidence, (self.size, ))
+        check_tensor(self.size_hw, (self.size, 2))
+        check_tensor(self.has_size_hw, (self.size, ))
+        check_tensor(self.rotation, (self.size, ))
+        check_tensor(self.has_rotation, (self.size, ))
+        check_tensor(self.is_rotation_360, (self.size, ))
+        check_tensor(self.max_class, (self.size, ), torch.int64)
+        check_tensor(self.has_max_class, (self.size, ), torch.bool)
 
     @staticmethod
     @torch.no_grad()
@@ -84,7 +84,6 @@ class AnnotationBlock:
                 size_hw=(size_hw[i] if has_size_hw[i] else None),
                 rotation=(rotation[i] if has_rotation[i] else None),
                 is_rotation_360=is_rotation_360[i],
-                max_class=None,
                 max_class=(max_class[i] if has_max_class[i] else None),
             )
             for i in range(self.size)
@@ -102,7 +101,7 @@ class AnnotationBlock:
             rotation=torch.zeros((0, ), dtype=torch.float64),
             has_rotation=torch.zeros((0, ), dtype=torch.bool),
             is_rotation_360=torch.zeros((0, ), dtype=torch.bool),
-            max_class=torch.zeros((0, 2), dtype=torch.float64),
+            max_class=torch.zeros((0, ), dtype=torch.int64),
             has_max_class=torch.zeros((0, ), dtype=torch.bool),
         )
 
@@ -129,7 +128,7 @@ class AnnotationBlock:
                 has_rotation=torch.tensor([a.rotation is not None for a in annotation_list]),
                 is_rotation_360=torch.tensor([a.is_rotation_360 for a in annotation_list]),
                 max_class=torch.tensor(np.array([
-                    a.max_class if a.max_class is not None else np.array([0.0, 0.0])
+                    a.max_class if a.max_class is not None else np.array(-1)
                     for a in annotation_list
                 ])),
                 has_max_class=torch.tensor([a.max_class is not None for a in annotation_list]),
@@ -233,6 +232,6 @@ class Annotation:
             rotation=(np.array(as_dict["r"], dtype=np.float32) if "r" in as_dict else None),
             is_high_confidence=True,
             is_rotation_360=True,
-            max_class=(np.array(as_dict["c"], dtype=np.float32) if "c" in as_dict else None),
+            max_class=(np.array(as_dict["c"], dtype=np.int64) if "c" in as_dict else None),
         )
 

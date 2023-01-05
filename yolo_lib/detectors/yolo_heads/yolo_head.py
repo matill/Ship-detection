@@ -151,7 +151,8 @@ class YOLOHead(nn.Module):
             self.absolute_yx_helper(post_activation[:, :, YOLO_YX, :, :], downsample_factor),
             post_activation[:, :, YOLO_O, :, :],
             post_activation[:, :, YOLO_HW, :, :] * downsample_factor,
-            self.decode_sincos_grid(post_activation[:, :, YOLO_SINCOS, :, :])
+            self.decode_sincos_grid(post_activation[:, :, YOLO_SINCOS, :, :]),
+            post_activation[:, :, self.yolo_class_channels, :, :] if self.num_classes else None,
         )
 
     def get_pre_activation(self, feature_map: Tensor) -> Tensor:
@@ -163,7 +164,7 @@ class YOLOHead(nn.Module):
             torch.exp(pre_activation[:, :, YOLO_HW, :, :]),
             torch.sigmoid(pre_activation[:, :, [YOLO_O], :, :]),
             pre_activation[:, :, YOLO_SINCOS, :, :],
-            torch.softmax(pre_activation[:, :, self.c, :, :], dim=2),
+            torch.softmax(pre_activation[:, :, self.yolo_class_channels, :, :], dim=2),
         ], dim=2)
 
         assert post_activation.shape == pre_activation.shape
