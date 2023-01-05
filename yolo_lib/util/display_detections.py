@@ -20,8 +20,11 @@ def display_yolo_tile(
     detections: DetectionBlock=None,
     grid_spacing: Optional[int]=None,
     display_mode: str=RBOX,
+    detection_list: Optional[List[Detection]]=None,
 ):
-    detection_list = None if detections is None else detections.as_detection_list()
+    if detection_list is None and detections is not None:
+        detection_list = None if detections is None else detections.as_detection_list()
+
     display_detections(
         tile.image.detach(),
         fname,

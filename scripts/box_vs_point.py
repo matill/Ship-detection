@@ -269,11 +269,11 @@ def display_val_set():
         for i, tiles in enumerate(test_dl):
             tiles: List[YOLOTile] = tiles
             tile = tiles[0]
-            detections = model.detect_objects(tile.image.cuda()).as_detection_block().filter_min_positivity(0.6)
+            detection_list = model.detect_objects_simple(tile.image.cuda(), 0.6)
             display_yolo_tile(
                 tile,
                 f"./out/box_vs_point/val/file{i}.png",
-                detections,
+                detection_list=detection_list,
                 # grid_spacing=None,
                 display_mode="WIDE_SQUARE",
             )
