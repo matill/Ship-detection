@@ -59,6 +59,8 @@ class RandomCrop(DataAugmentation):
             annotations_extracted.rotation,
             annotations_extracted.has_rotation,
             annotations_extracted.is_rotation_360,
+            annotations_extracted.max_class,
+            annotations_extracted.has_max_class,
         )
 
         # Create a YOLOTile

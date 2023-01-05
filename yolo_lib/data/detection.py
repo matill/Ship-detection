@@ -21,7 +21,9 @@ class DetectionBlock:
         assert self.objectness.shape == (self.size, )
         assert self.size_hw is None or self.size_hw.shape == (self.size, 2)
         assert self.rotation is None or self.rotation.shape == (self.size, )
-        assert self.class_probabilities is None or self.class_probabilities.shape == (self.size, )
+        if self.class_probabilities is not None:
+            num_classes = int(self.class_probabilities.shape[1])
+            assert self.class_probabilities.shape == (self.size, num_classes)
 
     @torch.no_grad()
     def as_detection_list(self) -> List[Detection]:
@@ -190,7 +192,6 @@ class Detection:
     size_hw: 2d vector (h, w) representing height and width of object in pixels.
     class_probabilities: C-dimensional vector: One-hot encoded.
     max_class: Integer in range(0, C), representing a hard class.
-    mask: A shapely polygon representing the shape of the object.
     """
     center_yx: np.ndarray
     objectness: float
@@ -198,3 +199,11 @@ class Detection:
     rotation: np.ndarray = None
     class_probabilities: np.ndarray = None
     max_class: int = None
+
+    def __post_init__(self):
+        print(self)
+        assert 0 <= self.objectness <= 1
+        if self.class_probabilities is not None:
+            assert abs(self.class_probabilities.sum() - 1) < 0.02, f"Detection.class_probabilities should sum to 1. Got ({float(self.class_probabilities.sum())})"
+
+

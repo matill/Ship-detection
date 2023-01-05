@@ -39,7 +39,8 @@ class PointPotoMatchloss(SimilarityMetric):
         annotations_b: AnnotationBlock, # Annotations within the image (not the entire batch)
         downsample_factor: float,
     ) -> Tensor:
-        check_tensor(post_activation_b_posi, (self.num_anchors, 7, num_posi_b))
+        outputs_per_anchor = int(post_activation_b_posi.shape[1])
+        check_tensor(post_activation_b_posi, (self.num_anchors, outputs_per_anchor, num_posi_b))
         check_tensor(prior_mutliplier_b_posi_idx, (num_posi_b, 2), torch.int64)
 
         # y_idxs_b = prior_mutliplier_b_posi_idx[:, 0]

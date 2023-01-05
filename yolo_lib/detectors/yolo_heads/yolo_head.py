@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from typing import Dict, Tuple
 import torch
 from torch import nn, Tensor
+from torch.nn.functional import cross_entropy
 from yolo_lib.cfg import DEVICE
 from yolo_lib.data.annotation import AnnotationBlock
 from yolo_lib.data.detection import DetectionGrid
@@ -36,6 +37,9 @@ class YOLOHeadCfg:
     loss_objectness_weight: float
     loss_box_weight: float
     loss_sincos_weight: float
+    loss_subclassification_weight: float
+
+    num_classes: int
 
     def build(self, in_channels: int) -> YOLOHead:
         return YOLOHead(
@@ -52,6 +56,9 @@ class YOLOHeadCfg:
             self.loss_objectness_weight,
             self.loss_box_weight,
             self.loss_sincos_weight,
+            self.loss_subclassification_weight,
+
+            self.num_classes,
         )
 
 
@@ -73,6 +80,7 @@ class YOLOHead(nn.Module):
         loss_objectness_weight: float,
         loss_box_weight: float,
         loss_sincos_weight: float,
+        loss_subclassification_weight: float,
 
         num_classes: int=0,
     ):
@@ -86,7 +94,8 @@ class YOLOHead(nn.Module):
         assert isinstance(loss_objectness_weight, float)
         assert isinstance(loss_box_weight, float)
         assert isinstance(loss_sincos_weight, float)
-        assert (loss_objectness_weight + loss_box_weight + loss_sincos_weight) == 1
+        assert isinstance(loss_subclassification_weight, float)
+        assert (loss_objectness_weight + loss_box_weight + loss_sincos_weight + loss_subclassification_weight) == 1
         assert isinstance(num_classes, int) and 0 <= num_classes
         super().__init__()
         self.complete_box_loss_fn = complete_box_loss_fn
@@ -97,6 +106,7 @@ class YOLOHead(nn.Module):
         self.loss_objectness_weight = loss_objectness_weight
         self.loss_box_weight = loss_box_weight
         self.loss_sincos_weight = loss_sincos_weight
+        self.loss_subclassification_weight = loss_subclassification_weight
         self.yx_multiplier = yx_multiplier
         self.num_classes = num_classes
         self.outputs_per_anchor = self.OUTPUTS_PER_ANCHOR + num_classes
@@ -369,17 +379,57 @@ class YOLOHead(nn.Module):
             assignment,
         )
 
+        # Get sub-classification loss
+        subclassification_loss = self.get_subclassification_loss(
+            pre_activation[:, :, self.yolo_class_channels, :, :],
+            annotations,
+            assignment,
+        )
+
         # Compute sub of subterms
         loss = (
             objectness_loss * self.loss_objectness_weight
             + box_loss * self.loss_box_weight
             + sincos_loss * self.loss_sincos_weight
+            + subclassification_loss * self.loss_subclassification_weight
         )
         subterms = {
             "objectness_loss": objectness_loss,
             "box_loss": box_loss,
             "sincos_loss": sincos_loss,
+            "subclassification_loss": subclassification_loss,
         }
         return loss, subterms
 
+    def get_subclassification_loss(
+        self,
+        pre_activation_classes: Tensor,
+        annotation_block: AnnotationBlock,
+        assignment: LabelAssignment,
+    ) -> Tensor:
+        assert isinstance(pre_activation_classes, Tensor)
+        assert isinstance(annotation_block, AnnotationBlock)
+        assert isinstance(assignment, LabelAssignment)
 
+        if self.num_classes == 0:
+            return torch.zeros((), dtype=torch.float64, device=DEVICE)
+
+        # Get assignment/matching-subset where all targets have valid orientation
+        valid_target_max_class_bitmap = annotation_block.has_max_class[assignment.object_idxs]
+        check_tensor(valid_target_max_class_bitmap, (assignment.num_assignments, ), torch.bool)
+        reduced_assignment = assignment.extract_bitmap(valid_target_max_class_bitmap)
+        num_assignments = reduced_assignment.num_assignments
+
+        # True classes
+        true_class_idxs = annotation_block.max_class[reduced_assignment.object_idxs]
+        check_tensor(true_class_idxs, (num_assignments, ))
+
+        # Predicted direction vectors.
+        (img_idxs, head_idxs, grid_y_idxs, grid_x_idxs) = reduced_assignment.get_grid_idx_vectors()
+        predicted_classes = pre_activation_classes[img_idxs, head_idxs, :, grid_y_idxs, grid_x_idxs]
+        check_tensor(predicted_classes, (num_assignments, self.num_classes))
+
+        # Loss:
+        loss = cross_entropy(predicted_classes, true_class_idxs, reduction="none")
+        check_tensor(loss, (num_assignments, ))
+        return loss.sum()

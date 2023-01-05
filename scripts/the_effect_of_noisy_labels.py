@@ -35,6 +35,8 @@ LOSS_HW_WEIGHT = 0.5
 LOSS_OBJECTNESS_WEIGHT = 0.5
 LOSS_BOX_WEIGHT = 0.3
 LOSS_ADV_WEIGHT = 0.2
+LOSS_SUBCLASSIFICATION_WEIGHT = 0.0
+NUM_CLASSES = 0
 
 # Image size
 TILE_SIZE = 512
@@ -143,6 +145,8 @@ def get_model(variation: str) -> BaseDetector:
         LOSS_OBJECTNESS_WEIGHT,
         LOSS_BOX_WEIGHT,
         LOSS_ADV_WEIGHT,
+        LOSS_SUBCLASSIFICATION_WEIGHT,
+        NUM_CLASSES,
     )
 
     return AttentionYOLOFCfg(
