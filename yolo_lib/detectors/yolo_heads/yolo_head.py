@@ -73,6 +73,8 @@ class YOLOHead(nn.Module):
         loss_objectness_weight: float,
         loss_box_weight: float,
         loss_sincos_weight: float,
+
+        num_classes: int=0,
     ):
         assert isinstance(in_channels, int)
         assert isinstance(num_anchors, int)
@@ -85,6 +87,7 @@ class YOLOHead(nn.Module):
         assert isinstance(loss_box_weight, float)
         assert isinstance(loss_sincos_weight, float)
         assert (loss_objectness_weight + loss_box_weight + loss_sincos_weight) == 1
+        assert isinstance(num_classes, int) and 0 <= num_classes
         super().__init__()
         self.complete_box_loss_fn = complete_box_loss_fn
         self.adv_loss_fn = adv_loss_fn
@@ -95,9 +98,10 @@ class YOLOHead(nn.Module):
         self.loss_box_weight = loss_box_weight
         self.loss_sincos_weight = loss_sincos_weight
         self.yx_multiplier = yx_multiplier
-
-        self.outputs_per_anchor = self.OUTPUTS_PER_ANCHOR
+        self.num_classes = num_classes
+        self.outputs_per_anchor = self.OUTPUTS_PER_ANCHOR + num_classes
         self.num_anchors = num_anchors
+        self.yolo_class_channels = list(range(self.OUTPUTS_PER_ANCHOR, self.outputs_per_anchor))
         self.wrapped_yolo_head = Conv5D(
             in_channels,
             num_anchors,
@@ -159,6 +163,7 @@ class YOLOHead(nn.Module):
             torch.exp(pre_activation[:, :, YOLO_HW, :, :]),
             torch.sigmoid(pre_activation[:, :, [YOLO_O], :, :]),
             pre_activation[:, :, YOLO_SINCOS, :, :],
+            torch.softmax(pre_activation[:, :, self.c, :, :], dim=2),
         ], dim=2)
 
         assert post_activation.shape == pre_activation.shape
@@ -182,7 +187,7 @@ class YOLOHead(nn.Module):
         batch_size = pre_activation.shape[0]
         height = pre_activation.shape[3]
         width = pre_activation.shape[4]
-        exp_shape = (batch_size, self.num_anchors, self.OUTPUTS_PER_ANCHOR, height, width)
+        exp_shape = (batch_size, self.num_anchors, self.outputs_per_anchor, height, width)
         check_tensor(pre_activation, exp_shape)
 
         # Compute spatial prior
@@ -228,7 +233,7 @@ class YOLOHead(nn.Module):
             y_idxs_b = prior_mutliplier_b_posi_idx[:, 0]
             x_idxs_b = prior_mutliplier_b_posi_idx[:, 1]
             post_activation_b_posi = post_activation[b][:, :, y_idxs_b, x_idxs_b]
-            check_tensor(post_activation_b_posi, (self.num_anchors, self.OUTPUTS_PER_ANCHOR, num_posi_b))
+            check_tensor(post_activation_b_posi, (self.num_anchors, self.outputs_per_anchor, num_posi_b))
             annotations_b = annotations.extract_index_tensor(batch_annotation_bitmap_nonzero)
             match_loss_before_prior = self.matchloss_fn.get_matchloss(
                 post_activation_b_posi,
