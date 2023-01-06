@@ -25,6 +25,9 @@ class DetectionBlock:
             num_classes = int(self.class_probabilities.shape[1])
             assert self.class_probabilities.shape == (self.size, num_classes)
 
+    def get_max_class(self):
+        return None if self.class_probabilities is None else self.class_probabilities.argmax(1)
+
     @torch.no_grad()
     def as_detection_list(self) -> List[Detection]:
         center_yx = self.center_yx.cpu().detach().numpy()
@@ -32,7 +35,7 @@ class DetectionBlock:
         size_hw = None if self.size_hw is None else self.size_hw.cpu().detach().numpy()
         rotation = None if self.rotation is None else self.rotation.cpu().detach().numpy()
         class_probabilities = None if self.class_probabilities is None else self.class_probabilities.cpu().detach().numpy()
-        max_class = None if self.class_probabilities is None else self.class_probabilities.argmax(1)
+        max_class = self.get_max_class()
         if max_class is not None:
             assert max_class.shape == (self.size, )
         return [

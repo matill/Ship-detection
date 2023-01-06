@@ -203,3 +203,50 @@ class CenterDistaneMetric(RegressionMetric):
             "mean_center_distance": float(distances.mean()),
             "median_center_distance": float(distances.median())
         }
+
+class SubclassificationMetrics(RegressionMetric):
+    def __init__(self, num_classes: int):
+        assert isinstance(num_classes, int)
+        assert num_classes >= 2
+        self.num_classes = num_classes
+
+    def reset(self):
+        self.confusion_matrix = torch.zeros((self.num_classes, self.num_classes))
+
+    def increment(
+        self,
+        matched_detections: DetectionBlock,
+        matched_annotations: AnnotationBlock,
+    ):
+        assert isinstance(matched_detections, DetectionBlock)
+        assert isinstance(matched_annotations, AnnotationBlock)
+        assert matched_detections.size == matched_annotations.size
+        num_matchings_total = matched_detections.size
+
+        # Extract class values where the Annotation/target is known
+        with_class_bitmap = matched_annotations.has_max_class
+        check_tensor(with_class_bitmap, (num_matchings_total, ), torch.bool)
+        true_class = matched_annotations.max_class[with_class_bitmap]
+        predicted_class = matched_detections.get_max_class()[with_class_bitmap]
+        num_with_hw = predicted_class.shape[0]
+        check_tensor(true_class, (num_with_hw, ), torch.int64)
+        check_tensor(predicted_class, (num_with_hw, ), torch.int64)
+
+        # Increment confusion matrix
+        self.confusion_matrix[true_class, predicted_class] += 1
+
+    def finalize(self) -> Dict[str, float]:
+        diagonal_vec = self.confusion_matrix.diag()
+        diagonal_sum = diagonal_vec.sum()
+        matrix_sum = self.confusion_matrix.sum()
+        check_tensor(diagonal_vec, (self.num_classes, ), torch.int64)
+        check_tensor(diagonal_sum, (), torch.int64)
+        check_tensor(matrix_sum, (), torch.int64)
+        return {
+            "mean_accuracy": self.divide(diagonal_sum.float(), matrix_sum.float()),
+            "confusion_matrix": [[int(elem)for elem in row] for row in self.confusion_matrix],
+            "info": r"confusion_matrix[i][j] represents true class i and predicted class j",
+        }
+
+
+

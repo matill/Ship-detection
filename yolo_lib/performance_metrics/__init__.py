@@ -4,7 +4,7 @@ from .composed_performance_metrics import ComposedPerformanceMetrics
 from .distance_ap import DistanceAP, MeanDistanceAP
 from .iou_ap import IoUAP, MeanIoUAP
 from .linear_sum_assignment_performance import LinSumPerformance
-from .regression_metrics import CenterDistaneMetric, RegressionMetric, RotationMetric, CenteredIoUMetric
+from .regression_metrics import CenterDistaneMetric, RegressionMetric, RotationMetric, CenteredIoUMetric, SubclassificationMetrics
 
 def get_default_performance_metrics() -> BasePerformanceMetric:
     iou_steps = [
