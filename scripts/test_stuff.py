@@ -32,6 +32,7 @@ from yolo_lib.performance_metrics import get_default_performance_metrics, Compos
 from yolo_lib.training_loop import TrainingLoop
 from yolo_lib.optimization_criteria import OptimizationCriteria
 from yolo_lib.util.display_detections import display_yolo_tile
+from yolo_lib.cfg import USE_GPU
 
 
 OUTPUT_BASE_DIR = "./out/test_stuff"
@@ -68,6 +69,7 @@ def get_script():
             "train": train,
             "plot_training_log": plot_training_log,
             "display_val_set": display_val_set,
+            "display_data_augmentations": display_data_augmentations,
         }
     )
 
@@ -75,15 +77,7 @@ def identity_collate(tiles: List[YOLOTile]) -> List[YOLOTile]:
     return tiles
 
 def get_performance_metrics():
-    return ComposedPerformanceMetrics({
-        "Distance-AP": DistanceAP(
-            distance_threshold=50.0,
-            max_detections=100,
-            regression_metrics=[CenteredIoUMetric(), RotationMetric(), CenterDistaneMetric(), SubclassificationMetrics(NUM_CLASSES)],
-            include_f2=True
-        )
-    })
-
+    return get_default_performance_metrics(num_classes=5)
 
 def get_model_cfg(model_type_name: str) -> DetectorCfg:
 
@@ -296,4 +290,64 @@ def display_val_set():
 
             if i == 10:
                 break
+
+
+def display_data_augmentations():
+    """
+    Reference script that shows how to display images before
+    and after applying a list of data augmentations. 
+    """
+    train_ds, test_ds = HRSIDDataset.get_split()
+    train_dl = DataLoader(train_ds, batch_size=12, shuffle=True, collate_fn=YOLOTileStack.stack_tiles)
+
+
+    # List of data augmentations, applied in order
+    data_augmentations = [
+        # Relocate objects in images for 70% of batches.
+        # When applied, each object is relocated with probability 0.1
+        Mosaic(0.7, 80, 10, 0.1),
+
+        # Crop images 40% of the time
+        RandomCrop(list(range(576, 800, 32)), 0.4, 1),
+
+        # Stact images side by side, 70% of the time
+        FlatBatch(0.9),
+
+        # Perform adversarial attack on images. Requires "half-trained"
+        # model to work, so it is commented out in this demo, but is an
+        # important data augmentation normally
+        # SAT(0.2, 10, 0.01, 0.1),
+    ]
+
+    # The method DataAugmentation.apply(self, tiles: YOLOTileStack, model: BaseDetector)
+    # requires the model as input, but only SAT uses it, so a dummy variable is
+    # fine for displaying data augmentations
+    model = None
+
+    # Data augmentations are applied differently based on the epoch number,so the
+    # DataAugmentation.apply(self, tiles: YOLOTileStack, model: BaseDetector)
+    # method requires the epoch number.
+    # Some data augmentations (such as SAT) don't make sense to use during the first epochs.
+    # Just pretend that we are in epoch 20
+    epoch = 20
+
+    for batch_idx, tile_stack in enumerate(train_dl):
+        tile_stack: YOLOTileStack = tile_stack.to_device(USE_GPU)
+
+        # Display original images in batch
+        for tile_idx, tile in enumerate(tile_stack.split_into_tiles()):
+            fname = f"./out/test_stuff/display_data_augmentations/batch_{batch_idx}_original_img_{tile_idx}"
+            display_yolo_tile(tile, fname, display_mode="WIDE_SQUARE")
+
+        # Apply data augmentations
+        augmented_tile_stack, num_augments = DataAugmentation.apply_list(data_augmentations, tile_stack, model, epoch)
+
+        # Display augmented images in batch
+        for tile_idx, tile in enumerate(augmented_tile_stack.split_into_tiles()):
+            fname = f"./out/test_stuff/display_data_augmentations/batch_{batch_idx}_augmented_img_{tile_idx}"
+            display_yolo_tile(tile, fname, display_mode="WIDE_SQUARE")
+
+        if batch_idx == 10:
+            break
+
 
