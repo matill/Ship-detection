@@ -28,7 +28,7 @@ from yolo_lib.detectors.yolo_heads.losses.ciou_loss import DIoUBoxLoss
 from yolo_lib.detectors.yolo_heads.losses.adv_loss import ADVLoss
 from yolo_lib.util.model_storage import ModelStorage
 from dataset_classes.ls_ssdd_dataset import LSSDDataset
-from yolo_lib.performance_metrics import get_default_performance_metrics
+from yolo_lib.performance_metrics import get_default_performance_metrics, ComposedPerformanceMetrics, DistanceAP, CenteredIoUMetric, CenterDistaneMetric, SubclassificationMetrics, RotationMetric 
 from yolo_lib.training_loop import TrainingLoop
 from yolo_lib.optimization_criteria import OptimizationCriteria
 from yolo_lib.util.display_detections import display_yolo_tile
@@ -73,6 +73,17 @@ def get_script():
 
 def identity_collate(tiles: List[YOLOTile]) -> List[YOLOTile]:
     return tiles
+
+def get_performance_metrics():
+    return ComposedPerformanceMetrics({
+        "Distance-AP": DistanceAP(
+            distance_threshold=50.0,
+            max_detections=100,
+            regression_metrics=[CenteredIoUMetric(), RotationMetric(), CenterDistaneMetric(), SubclassificationMetrics(NUM_CLASSES)],
+            include_f2=True
+        )
+    })
+
 
 def get_model_cfg(model_type_name: str) -> DetectorCfg:
 
@@ -160,7 +171,7 @@ def get_training_loop(dataset_name: str, model_type_name: str) -> TrainingLoop:
         model,
         torch.optim.Adam(model.parameters(), 5e-5),
         get_data_augmentations(),
-        get_default_performance_metrics(),
+        get_performance_metrics(),
         lr_scheduler_lambda,
         MAX_EPOCHS,
         train_dl,
