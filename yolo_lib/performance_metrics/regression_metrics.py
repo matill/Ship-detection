@@ -75,6 +75,9 @@ class RotationMetric(RegressionMetric):
         self.annotations_with_180_angle_count = 0
         self.correct_direction_count = 0
 
+        self.mod_180_diffs = []
+        self.mod_360_diffs = []
+
     def increment(
         self,
         matched_detections: DetectionBlock,
@@ -95,6 +98,7 @@ class RotationMetric(RegressionMetric):
         assert mod_180_diffs.shape == (num_180, )
         self.angle_mod_180_sum += float(mod_180_diffs.sum())
         self.annotations_with_180_angle_count += num_180
+        self.mod_180_diffs.extend((float(x) for x in mod_180_diffs))
 
         # Subset with known orientation, WITH distinguishing front and back
         with_360_bitmap = matched_annotations_180.has_rotation
@@ -111,6 +115,7 @@ class RotationMetric(RegressionMetric):
         self.angle_mod_360_sum += float(mod_360_diffs.sum())
         self.annotations_with_360_angle_count += num_360
         self.correct_direction_count += float((0.25 > mod_360_diffs).sum())
+        self.mod_360_diffs.extend((float(x) for x in mod_360_diffs))
 
     def get_mod_180_differences(
         self,
@@ -154,12 +159,24 @@ class RotationMetric(RegressionMetric):
         return corrected_diffs
 
     def finalize(self) -> Dict[str, float]:
-        return {
-            "avg_angle_mod_360_degrees": self.divide(self.angle_mod_360_sum * 360, self.annotations_with_360_angle_count),
-            "avg_angle_mod_180_degrees": self.divide(self.angle_mod_180_sum * 360, self.annotations_with_180_angle_count),
+        mod_180_diffs = torch.tensor(self.mod_180_diffs)
+        mod_360_diffs = torch.tensor(self.mod_360_diffs)
+        heading_mod_180_diffs_sd = mod_180_diffs.var().sqrt()
+        heading_mod_360_diffs_sd = mod_360_diffs.var().sqrt()
+        heading_mod_180_diffs_mean = mod_180_diffs.mean()
+        heading_mod_360_diffs_mean = mod_360_diffs.mean()
+        # avg_angle_mod_360_degrees = self.divide(sum(self.mod_360_diffs), len(self.mod_360_diffs))
+        # avg_angle_mod_180_degrees = self.divide(sum(self.mod_180_diffs), len(self.mod_180_diffs))
+        a =  {
+            "heading_mod_180_diffs_sd": float(heading_mod_180_diffs_sd),
+            "heading_mod_360_diffs_sd": float(heading_mod_360_diffs_sd),
+            "heading_mod_180_diffs_mean": float(heading_mod_180_diffs_mean),
+            "heading_mod_360_diffs_mean": float(heading_mod_360_diffs_mean),
             "correct_direction_rate": self.divide(self.correct_direction_count, self.annotations_with_360_angle_count),
             "annotations_with_180_angle_count": int(self.annotations_with_180_angle_count),
         }
+        print(a)
+        return a
 
 class RegressionMetric:
     def reset(self):
@@ -211,7 +228,7 @@ class SubclassificationMetrics(RegressionMetric):
         self.num_classes = num_classes
 
     def reset(self):
-        self.confusion_matrix = torch.zeros((self.num_classes, self.num_classes))
+        self.confusion_matrix = torch.zeros((self.num_classes, self.num_classes), dtype=torch.int64)
 
     def increment(
         self,
@@ -243,9 +260,9 @@ class SubclassificationMetrics(RegressionMetric):
         check_tensor(diagonal_sum, (), torch.int64)
         check_tensor(matrix_sum, (), torch.int64)
         return {
-            "mean_accuracy": self.divide(diagonal_sum.float(), matrix_sum.float()),
-            "confusion_matrix": [[int(elem)for elem in row] for row in self.confusion_matrix],
-            "info": r"confusion_matrix[i][j] represents true class i and predicted class j",
+            "subclassification_mean_accuracy": self.divide(diagonal_sum.float(), matrix_sum.float()),
+            "subclassifitaiton_confusion_matrix": [[int(elem)for elem in row] for row in self.confusion_matrix],
+            "subclassifitaiton_info": r"confusion_matrix[i][j] represents true class i and predicted class j",
         }
 
 

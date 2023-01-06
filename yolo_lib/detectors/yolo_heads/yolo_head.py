@@ -33,7 +33,7 @@ class YOLOHeadCfg:
     adv_loss_fn: ADVLoss
     complete_box_loss_fn: BoxLoss
     objectness_loss_fn: ConfidenceUnawareObjectnessLoss
-
+    
     loss_objectness_weight: float
     loss_box_weight: float
     loss_sincos_weight: float
