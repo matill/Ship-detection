@@ -77,7 +77,7 @@ def identity_collate(tiles: List[YOLOTile]) -> List[YOLOTile]:
     return tiles
 
 def get_performance_metrics():
-    return get_default_performance_metrics(num_classes=5)
+    return get_default_performance_metrics(num_classes=0)
 
 def get_model_cfg(model_type_name: str) -> DetectorCfg:
 

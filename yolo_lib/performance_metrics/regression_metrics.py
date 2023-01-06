@@ -224,10 +224,13 @@ class CenterDistaneMetric(RegressionMetric):
 class SubclassificationMetrics(RegressionMetric):
     def __init__(self, num_classes: int):
         assert isinstance(num_classes, int)
-        assert num_classes >= 2
+        assert num_classes >= 2 or num_classes == 0
         self.num_classes = num_classes
 
     def reset(self):
+        if self.num_classes == 0:
+            return
+
         self.confusion_matrix = torch.zeros((self.num_classes, self.num_classes), dtype=torch.int64)
 
     def increment(
@@ -235,6 +238,9 @@ class SubclassificationMetrics(RegressionMetric):
         matched_detections: DetectionBlock,
         matched_annotations: AnnotationBlock,
     ):
+        if self.num_classes == 0:
+            return
+
         assert isinstance(matched_detections, DetectionBlock)
         assert isinstance(matched_annotations, AnnotationBlock)
         assert matched_detections.size == matched_annotations.size
@@ -253,6 +259,9 @@ class SubclassificationMetrics(RegressionMetric):
         self.confusion_matrix[true_class, predicted_class] += 1
 
     def finalize(self) -> Dict[str, float]:
+        if self.num_classes == 0:
+            return {}
+
         diagonal_vec = self.confusion_matrix.diag()
         diagonal_sum = diagonal_vec.sum()
         matrix_sum = self.confusion_matrix.sum()
